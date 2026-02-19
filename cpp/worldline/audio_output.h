@@ -27,6 +27,11 @@ struct ou_audio_context_t {
   ma_device device;
 };
 
+struct ou_audio_decoder_t {
+  ma_decoder decoder;
+  bool is_open;
+};
+
 typedef void (*ou_audio_data_callback_t)(float* buffer, uint32_t channels,
                                          uint32_t frame_count);
 
@@ -55,6 +60,24 @@ DLL_API int ou_audio_device_start(ou_audio_context_t* context);
 DLL_API int ou_audio_device_stop(ou_audio_context_t* context);
 
 DLL_API const char* ou_audio_get_error_message(int error_code);
+
+DLL_API ou_audio_decoder_t* ou_audio_decoder_open(const char* filename);
+
+DLL_API ou_audio_decoder_t* ou_audio_decoder_open_memory(const void* data, size_t data_size);
+
+DLL_API void ou_audio_decoder_close(ou_audio_decoder_t* decoder);
+
+DLL_API int ou_audio_decoder_get_sample_rate(ou_audio_decoder_t* decoder);
+
+DLL_API int ou_audio_decoder_get_channels(ou_audio_decoder_t* decoder);
+
+DLL_API int ou_audio_decoder_get_length(ou_audio_decoder_t* decoder);
+
+DLL_API int ou_audio_decoder_read(ou_audio_decoder_t* decoder, float* buffer, int frames);
+
+DLL_API int ou_audio_decoder_seek(ou_audio_decoder_t* decoder, int frame);
+
+DLL_API int ou_audio_decoder_is_at_end(ou_audio_decoder_t* decoder);
 
 #if defined(__cplusplus)
 }

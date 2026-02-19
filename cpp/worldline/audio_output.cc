@@ -189,3 +189,65 @@ DLL_API int ou_audio_device_stop(ou_audio_context_t* context) {
 DLL_API const char* ou_audio_get_error_message(int error_code) {
   return ma_result_description((ma_result)error_code);
 }
+
+DLL_API ou_audio_decoder_t* ou_audio_decoder_open(const char* filename) {
+  ou_audio_decoder_t* decoder = new ou_audio_decoder_t();
+  if (decoder == NULL) {
+    return NULL;
+  }
+  
+  ma_result result = ma_decoder_init_file(filename, NULL, &decoder->decoder);
+  if (result != MA_SUCCESS) {
+    delete decoder;
+    return NULL;
+  }
+  decoder->is_open = true;
+  return decoder;
+}
+
+DLL_API void ou_audio_decoder_close(ou_audio_decoder_t* decoder) {
+  if (decoder) {
+    ma_decoder_uninit(&decoder->decoder);
+    delete decoder;
+  }
+}
+
+DLL_API int ou_audio_decoder_get_sample_rate(ou_audio_decoder_t* decoder) {
+  if (!decoder) return 0;
+  return decoder->decoder.outputSampleRate;
+}
+
+DLL_API int ou_audio_decoder_get_channels(ou_audio_decoder_t* decoder) {
+  if (!decoder) return 0;
+  return decoder->decoder.outputChannels;
+}
+
+DLL_API int ou_audio_decoder_get_length(ou_audio_decoder_t* decoder) {
+  if (!decoder) return 0;
+  ma_uint64 length = 0;
+  ma_decoder_get_length_in_pcm_frames(&decoder->decoder, &length);
+  return (int)length;
+}
+
+DLL_API int ou_audio_decoder_read(ou_audio_decoder_t* decoder, float* buffer, int frame_count) {
+  if (!decoder || !buffer) return 0;
+  
+  ma_uint64 framesRead = 0;
+  ma_result result = ma_decoder_read_pcm_frames(&decoder->decoder, buffer, frame_count, &framesRead);
+  if (result != MA_SUCCESS) {
+    return -1;
+  }
+  
+  return (int)framesRead;
+}
+
+DLL_API int ou_audio_decoder_seek(ou_audio_decoder_t* decoder, int frame_position) {
+  if (!decoder) return -1;
+  
+  ma_result result = ma_decoder_seek_to_pcm_frame(&decoder->decoder, frame_position);
+  if (result != MA_SUCCESS) {
+    return -1;
+  }
+  
+  return 0;
+}

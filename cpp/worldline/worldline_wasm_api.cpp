@@ -4,8 +4,17 @@
 
 #include "worldline/worldline.h"
 #include "worldline/synth_request.h"
+#include "worldline/audio_output.h"
 
 extern "C" {
+
+struct PhraseSynthWrapper {
+    PhraseSynth* ptr;
+};
+
+struct AudioDecoderWrapper {
+    ou_audio_decoder_t* decoder;
+};
 
 // Version
 EMSCRIPTEN_KEEPALIVE
@@ -212,9 +221,6 @@ float* worldline_synthesize(
     *out_length = length;
     return result;
 }
-struct PhraseSynthWrapper {
-    PhraseSynth* ptr;
-};
 
 EMSCRIPTEN_KEEPALIVE
 PhraseSynthWrapper* worldline_phrase_synth_new() {
@@ -290,6 +296,57 @@ float* worldline_phrase_synth_synth(PhraseSynthWrapper* wrapper, int* out_length
     
     *out_length = length;
     return output;
+}
+
+EMSCRIPTEN_KEEPALIVE
+AudioDecoderWrapper* worldline_audio_decoder_init_file(const char* filename) {
+    AudioDecoderWrapper* wrapper = (AudioDecoderWrapper*)malloc(sizeof(AudioDecoderWrapper));
+    wrapper->decoder = ou_audio_decoder_open(filename);
+    if (!wrapper->decoder) {
+        free(wrapper);
+        return nullptr;
+    }
+    return wrapper;
+}
+
+EMSCRIPTEN_KEEPALIVE
+void worldline_audio_decoder_free(AudioDecoderWrapper* wrapper) {
+    if (wrapper) {
+        if (wrapper->decoder) {
+            ou_audio_decoder_close(wrapper->decoder);
+        }
+        free(wrapper);
+    }
+}
+
+EMSCRIPTEN_KEEPALIVE
+int worldline_audio_decoder_get_sample_rate(AudioDecoderWrapper* wrapper) {
+    if (!wrapper || !wrapper->decoder) return 0;
+    return ou_audio_decoder_get_sample_rate(wrapper->decoder);
+}
+
+EMSCRIPTEN_KEEPALIVE
+int worldline_audio_decoder_get_channels(AudioDecoderWrapper* wrapper) {
+    if (!wrapper || !wrapper->decoder) return 0;
+    return ou_audio_decoder_get_channels(wrapper->decoder);
+}
+
+EMSCRIPTEN_KEEPALIVE
+int worldline_audio_decoder_get_frame_count(AudioDecoderWrapper* wrapper) {
+    if (!wrapper || !wrapper->decoder) return 0;
+    return ou_audio_decoder_get_length(wrapper->decoder);
+}
+
+EMSCRIPTEN_KEEPALIVE
+int worldline_audio_decoder_read(AudioDecoderWrapper* wrapper, float* buffer, int frame_count) {
+    if (!wrapper || !wrapper->decoder || !buffer) return 0;
+    return ou_audio_decoder_read(wrapper->decoder, buffer, frame_count);
+}
+
+EMSCRIPTEN_KEEPALIVE
+int worldline_audio_decoder_seek(AudioDecoderWrapper* wrapper, int frame_position) {
+    if (!wrapper || !wrapper->decoder) return -1;
+    return ou_audio_decoder_seek(wrapper->decoder, frame_position);
 }
 
 } // extern "C"

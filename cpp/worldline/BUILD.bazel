@@ -119,7 +119,9 @@ cc_binary(
     deps = [
         ":worldline_lib",
         "@world//:audioio",
+        ":audio_output_lib",
     ],
+    includes = ["."],
     linkopts = [
         "-s",
         "WASM=1",
