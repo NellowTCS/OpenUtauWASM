@@ -15,3 +15,8 @@ build:ubuntu-aarch64 --linkopt='-lm'
 build:ubuntu-aarch64 --crosstool_top=//toolchain:arm_suite
 build:ubuntu-aarch64 --cpu=aarch64
 build:ubuntu-aarch64 --compiler=gcc
+
+build:wasm --platforms=@emsdk//:platform_wasm
+build:wasm --crosstool_top=@emsdk//:cc-toolchain-wasm-emscripten_linux
+build:wasm --cpu=wasm
+build:wasm --cxxopt='-std=c++17'

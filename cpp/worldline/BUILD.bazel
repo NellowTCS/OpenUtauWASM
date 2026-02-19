@@ -109,3 +109,28 @@ cc_binary(
         "@world//:audioio",
     ],
 )
+
+cc_binary(
+    name = "worldline_wasm",
+    srcs = [
+        "worldline_wasm_bindings.cpp",
+        "worldline_wasm_api.cpp",
+    ],
+    deps = [
+        ":worldline_lib",
+        "@world//:audioio",
+    ],
+    linkopts = [
+        "-s",
+        "WASM=1",
+        "-lembind",
+        "-s",
+        "ALLOW_MEMORY_GROWTH=1",
+        "-s",
+        "MODULARIZE=1",
+        "-s",
+        "EXPORT_NAME='Worldline'",
+        "-s",
+        "NO_EXIT_RUNTIME=1",
+    ],
+)
