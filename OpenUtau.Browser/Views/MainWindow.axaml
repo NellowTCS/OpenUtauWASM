@@ -1,0 +1,22 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="650"
+             x:Class="OpenUtau.App.Views.MainWindow"
+             Focusable="True">
+  <Grid Background="{DynamicResource SystemControlBackgroundAltHighBrush}">
+    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="20">
+      <TextBlock Text="OpenUtau" FontSize="48" FontWeight="Bold" HorizontalAlignment="Center"/>
+      <Border Background="{DynamicResource SystemControlBackgroundAltMediumHighBrush}" 
+              CornerRadius="8" Padding="30,20" Margin="0,20,0,0">
+        <StackPanel Spacing="10">
+          <TextBlock Text="Note:" FontWeight="SemiBold" FontSize="16"/>
+          <TextBlock TextWrapping="Wrap" MaxWidth="400" Opacity="0.8">
+            IT WORKS!!!!!!
+          </TextBlock>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </Grid>
+</UserControl>

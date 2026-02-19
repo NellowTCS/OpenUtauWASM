@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -6,7 +6,6 @@ using System.Reactive;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using DynamicData.Binding;
-using OpenUtau.App.Views;
 using OpenUtau.Core;
 using OpenUtau.Core.Ustx;
 using OpenUtau.Core.Util;
@@ -157,7 +156,7 @@ namespace OpenUtau.App.ViewModels {
             }
         }
 
-        public void InitProject(MainWindow window) {
+        public void InitProject() {
             var recPath = Preferences.Default.RecoveryPath;
             if (!string.IsNullOrWhiteSpace(recPath) && File.Exists(recPath)) {
                 /*
@@ -167,7 +166,7 @@ namespace OpenUtau.App.ViewModels {
                     ThemeManager.GetString("dialogs.recovery.caption"),
                     MessageBox.MessageBoxButtons.YesNo);
                 if (result == MessageBox.MessageBoxResult.Yes) {
-                    DocManager.Inst.ExecuteCmd(new LoadingNotification(typeof(MainWindow), true, "project"));
+                    DocManager.Inst.ExecuteCmd(new LoadingNotification(typeof(IMainWindowMarker), true, "project"));
                     try {
                         Core.Format.Formats.RecoveryProject(new string[] { recPath });
                         Page = 1;
@@ -175,7 +174,7 @@ namespace OpenUtau.App.ViewModels {
                         DocManager.Inst.Recovered = true;
                         this.RaisePropertyChanged(nameof(Title));
                     } finally {
-                        DocManager.Inst.ExecuteCmd(new LoadingNotification(typeof(MainWindow), false, "project"));
+                        DocManager.Inst.ExecuteCmd(new LoadingNotification(typeof(IMainWindowMarker), false, "project"));
                     }
                     return;
                 }
@@ -224,14 +223,14 @@ namespace OpenUtau.App.ViewModels {
             if (files == null) {
                 return;
             }
-            DocManager.Inst.ExecuteCmd(new LoadingNotification(typeof(MainWindow), true, "project"));
+            DocManager.Inst.ExecuteCmd(new LoadingNotification(typeof(IMainWindowMarker), true, "project"));
             try {
 
                 Core.Format.Formats.LoadProject(files);
                 DocManager.Inst.ExecuteCmd(new VoiceColorRemappingNotification(-1, true));
                 this.RaisePropertyChanged(nameof(Title));
             } finally {
-                DocManager.Inst.ExecuteCmd(new LoadingNotification(typeof(MainWindow), false, "project"));
+                DocManager.Inst.ExecuteCmd(new LoadingNotification(typeof(IMainWindowMarker), false, "project"));
             }
             DocManager.Inst.Recovered = false;
         }

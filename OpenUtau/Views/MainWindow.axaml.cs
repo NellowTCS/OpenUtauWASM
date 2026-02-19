@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
@@ -103,7 +103,7 @@ namespace OpenUtau.App.Views {
         }
 
         public void InitProject() {
-            viewModel.InitProject(this);
+            viewModel.InitProject();
         }
 
         void OnEditTimeSignature(object sender, PointerPressedEventArgs args) {

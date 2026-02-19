@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -6,11 +6,13 @@ using System.Reactive;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Styling;
 using OpenUtau.Api;
+using OpenUtau.App.ViewModels;
 using OpenUtau.App.Views;
 using OpenUtau.Core;
 using OpenUtau.Core.Ustx;
@@ -297,13 +299,15 @@ namespace OpenUtau.App.ViewModels {
             items.Add(new MenuItemViewModel() {
                 Header = ThemeManager.GetString("tracks.installsinger"),
                 Command = ReactiveCommand.Create(async () => {
-                    var mainWindow = (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)
-                        ?.MainWindow as MainWindow;
-                    if (mainWindow == null) {
+                    if (OS.IsBrowser()) {
+                        return;
+                    }
+                    var desktop = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
+                    if (desktop?.MainWindow == null) {
                         return;
                     }
                     var file = await FilePicker.OpenFileAboutSinger(
-                        mainWindow, "menu.tools.singer.install", FilePicker.ArchiveFiles);
+                        desktop.MainWindow, "menu.tools.singer.install", FilePicker.ArchiveFiles);
                     if (file == null) {
                         return;
                     }
@@ -322,13 +326,13 @@ namespace OpenUtau.App.ViewModels {
                                 ArchiveFilePath = file,
                             },
                         };
-                        _ = setup.ShowDialog(mainWindow);
+                        _ = setup.ShowDialog(desktop.MainWindow);
                         if (setup.Position.Y < 0) {
                             setup.Position = setup.Position.WithY(0);
                         }
                     } catch (Exception e) {
                         Log.Error(e, $"Failed to install singer {file}");
-                        _ = await MessageBox.ShowError(mainWindow, new MessageCustomizableException($"Failed to install singer {file}", $"<translate:errors.failed.installsinger>: {file}", e));
+                        _ = await MessageBox.ShowError(desktop.MainWindow, new MessageCustomizableException($"Failed to install singer {file}", $"<translate:errors.failed.installsinger>: {file}", e));
                     }
                 })
             });
@@ -357,10 +361,10 @@ namespace OpenUtau.App.ViewModels {
             items.Add(new MenuItemViewModel() {
                 Header = ThemeManager.GetString("singers.refresh"),
                 Command = ReactiveCommand.Create(() => {
-                    DocManager.Inst.ExecuteCmd(new LoadingNotification(typeof(MainWindow), true, "singer"));
+                    DocManager.Inst.ExecuteCmd(new LoadingNotification(typeof(IMainWindowMarker), true, "singer"));
                     SingerManager.Inst.SearchAllSingers();
                     DocManager.Inst.ExecuteCmd(new SingersRefreshedNotification());
-                    DocManager.Inst.ExecuteCmd(new LoadingNotification(typeof(MainWindow), false, "singer"));
+                    DocManager.Inst.ExecuteCmd(new LoadingNotification(typeof(IMainWindowMarker), false, "singer"));
                 })
             });
 

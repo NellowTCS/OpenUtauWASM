@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
@@ -10,7 +10,7 @@ using OpenUtau.Core;
 using OpenUtau.Core.Ustx;
 
 namespace OpenUtau.App.Views {
-    class PartEditState {
+    public class PartEditState {
         public virtual MouseButton MouseButton => MouseButton.Left;
         public readonly Control control;
         public readonly MainWindowViewModel vm;
@@ -38,7 +38,7 @@ namespace OpenUtau.App.Views {
         }
     }
 
-    class PartSelectionEditState : PartEditState {
+    internal class PartSelectionEditState : PartEditState {
         private int startTick;
         private int startTrack;
         public readonly Rectangle selectionBox;
@@ -83,7 +83,7 @@ namespace OpenUtau.App.Views {
         }
     }
 
-    class PartMoveEditState : PartEditState {
+    internal class PartMoveEditState : PartEditState {
         public readonly UPart part;
         public readonly bool isVoice;
         private double xOffset;
@@ -154,7 +154,7 @@ namespace OpenUtau.App.Views {
         }
     }
 
-    class PartResizeEditState : PartEditState {
+    internal class PartResizeEditState : PartEditState {
         public readonly UPart part;
         public readonly bool fromStart;
         protected override string? commandNameKey => "command.part.edit";
@@ -195,7 +195,7 @@ namespace OpenUtau.App.Views {
         }
     }
 
-    class PartEraseEditState : PartEditState {
+    internal class PartEraseEditState : PartEditState {
         public override MouseButton MouseButton => MouseButton.Right;
         protected override string? commandNameKey => "command.part.delete";
 
@@ -209,7 +209,7 @@ namespace OpenUtau.App.Views {
         }
     }
 
-    class PartPanningState : PartEditState {
+    internal class PartPanningState : PartEditState {
         public override MouseButton MouseButton => MouseButton.Middle;
         public PartPanningState(Control control, MainWindowViewModel vm) : base(control, vm) { }
         public override void Begin(IPointer pointer, Point point) {

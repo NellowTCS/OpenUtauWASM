@@ -1,0 +1,42 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:OpenUtau.App"
+             x:Class="OpenUtau.App.App" Name="OpenUtau">
+  <Application.DataTemplates>
+    <local:ViewLocator/>
+  </Application.DataTemplates>
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceInclude x:Key="strings-en-US" Source="avares://OpenUtau/Strings/Strings.axaml"/>
+      <ResourceInclude x:Key="strings-de-DE" Source="avares://OpenUtau/Strings/Strings.de-DE.axaml"/>
+      <ResourceInclude x:Key="strings-es-ES" Source="avares://OpenUtau/Strings/Strings.es-ES.axaml"/>
+      <ResourceInclude x:Key="strings-es-MX" Source="avares://OpenUtau/Strings/Strings.es-MX.axaml"/>
+      <ResourceInclude x:Key="strings-fi-FI" Source="avares://OpenUtau/Strings/Strings.fi-FI.axaml"/>
+      <ResourceInclude x:Key="strings-fr-FR" Source="avares://OpenUtau/Strings/Strings.fr-FR.axaml"/>
+      <ResourceInclude x:Key="strings-id-ID" Source="avares://OpenUtau/Strings/Strings.id-ID.axaml"/>
+      <ResourceInclude x:Key="strings-it-IT" Source="avares://OpenUtau/Strings/Strings.it-IT.axaml"/>
+      <ResourceInclude x:Key="strings-ja-JP" Source="avares://OpenUtau/Strings/Strings.ja-JP.axaml"/>
+      <ResourceInclude x:Key="strings-ko-KR" Source="avares://OpenUtau/Strings/Strings.ko-KR.axaml"/>
+      <ResourceInclude x:Key="strings-nl-NL" Source="avares://OpenUtau/Strings/Strings.nl-NL.axaml"/>
+      <ResourceInclude x:Key="strings-pl-PL" Source="avares://OpenUtau/Strings/Strings.pl-PL.axaml"/>
+      <ResourceInclude x:Key="strings-pt-BR" Source="avares://OpenUtau/Strings/Strings.pt-BR.axaml"/>
+      <ResourceInclude x:Key="strings-ru-RU" Source="avares://OpenUtau/Strings/Strings.ru-RU.axaml"/>
+      <ResourceInclude x:Key="strings-vi-VN" Source="avares://OpenUtau/Strings/Strings.vi-VN.axaml"/>
+      <ResourceInclude x:Key="strings-zh-CN" Source="avares://OpenUtau/Strings/Strings.zh-CN.axaml"/>
+      <ResourceInclude x:Key="strings-zh-TW" Source="avares://OpenUtau/Strings/Strings.zh-TW.axaml"/>
+      <ResourceInclude x:Key="strings-th-TH" Source="avares://OpenUtau/Strings/Strings.th-TH.axaml"/>
+      <ResourceInclude x:Key="themes-dark" Source="avares://OpenUtau/Colors/DarkTheme.axaml"/>
+      <ResourceInclude x:Key="themes-light" Source="avares://OpenUtau/Colors/LightTheme.axaml"/>
+      <ResourceInclude x:Key="themes-custom" Source="avares://OpenUtau/Colors/CustomTheme.axaml"/>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="avares://OpenUtau/Colors/Brushes.axaml"/>
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </Application.Resources>
+  <Application.Styles>
+    <FluentTheme />
+    <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml"/>
+    <StyleInclude Source="avares://Avalonia.Controls.ColorPicker/Themes/Fluent/Fluent.xaml" />
+    <StyleInclude Source="avares://OpenUtau/Styles/Styles.axaml"/>
+  </Application.Styles>
+</Application>

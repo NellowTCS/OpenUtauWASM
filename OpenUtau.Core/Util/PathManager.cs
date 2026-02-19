@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -12,10 +12,22 @@ using Serilog;
 
 namespace OpenUtau.Core {
 
-    public class PathManager : SingletonBase<PathManager> {
+    public class PathManager {
+        private static readonly Lazy<PathManager> inst = new Lazy<PathManager>(() => new PathManager());
+        public static PathManager Inst => inst.Value;
         public PathManager() {
-            RootPath = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
-            if (OS.IsMacOS()) {
+            try {
+                var assembly = Assembly.GetEntryAssembly();
+                RootPath = assembly != null ? Path.GetDirectoryName(assembly.Location) ?? "" : "";
+            } catch {
+                RootPath = "";
+            }
+            if (OS.IsBrowser()) {
+                DataPath = "/openutau";
+                CachePath = "/openutau/cache";
+                RootPath = "/openutau";
+                HomePathIsAscii = true;
+            } else if (OS.IsMacOS()) {
                 string userHome = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
                 DataPath = Path.Combine(userHome, "Library", "OpenUtau");
                 CachePath = Path.Combine(userHome, "Library", "Caches", "OpenUtau");

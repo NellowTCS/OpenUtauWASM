@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
@@ -9,9 +9,9 @@ using OpenUtau.Core.Util;
 using ReactiveUI;
 
 namespace OpenUtau.App {
-    class ThemeChangedEvent { }
+    public class ThemeChangedEvent { }
 
-    class ThemeManager {
+    public class ThemeManager {
         public static bool IsDarkMode = false;
         public static IBrush ForegroundBrush = Brushes.Black;
         public static IBrush BackgroundBrush = Brushes.White;

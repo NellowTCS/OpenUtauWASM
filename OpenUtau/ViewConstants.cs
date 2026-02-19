@@ -1,7 +1,7 @@
-﻿using Avalonia.Input;
+using Avalonia.Input;
 
 namespace OpenUtau.App {
-    static class ViewConstants {
+    public static class ViewConstants {
         public const double TickWidthMax = 256.0 / 480.0;
         public const double TickWidthMin = 4.0 / 480.0;
         public const double TickWidthDefault = 24.0 / 480.0;

@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -30,7 +30,7 @@ namespace OpenUtau.App.Views {
         void WindowClosing(object? sender, WindowClosingEventArgs e) {
             _instance = null;
             MessageBus.Current.SendMessage(new ThemeEditorStateChangedEvent());
-            App.SetTheme();
+            AppUtils.SetTheme();
         }
 
         public static void Show(string customThemePath) {

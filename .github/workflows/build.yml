@@ -56,7 +56,9 @@ jobs:
       - uses: justalemon/VersionPatcher@v0.7.1
         with:
           version: ${{ inputs.version }}
-          csproj-files: "OpenUtau/*.csproj"
+          csproj-files: | 
+            "OpenUtau/*.csproj"
+            "OpenUtau.Desktop/*.csproj"
 
       # Test
       - name: Test
@@ -64,14 +66,14 @@ jobs:
 
       # Build
       - name: Restore
-        run: dotnet restore OpenUtau -r ${{ matrix.arch.rid }}
+        run: dotnet restore OpenUtau.Desktop -r ${{ matrix.arch.rid }}
 
       - name: Build (Windows and Linux)
-        run: dotnet publish OpenUtau -c Release -r ${{ matrix.arch.rid }} --self-contained true -o bin/${{ matrix.arch.name }}/
+        run: dotnet publish OpenUtau.Desktop -c Release -r ${{ matrix.arch.rid }} --self-contained true -o bin/${{ matrix.arch.name }}/
         if: ${{ matrix.arch.os != 'osx' }}
 
       - name: Build (MacOS)
-        run: dotnet msbuild OpenUtau -t:BundleApp -p:Configuration=Release -p:RuntimeIdentifier=${{ matrix.arch.rid }} -p:UseAppHost=true -p:SelfContained=true -p:OutputPath=../bin/${{ matrix.arch.name }}/
+        run: dotnet msbuild OpenUtau.Desktop -t:BundleApp -p:Configuration=Release -p:RuntimeIdentifier=${{ matrix.arch.rid }} -p:UseAppHost=true -p:SelfContained=true -p:OutputPath=../bin/${{ matrix.arch.name }}/
         if: ${{ matrix.arch.os == 'osx' }}
       
       - name: Write release channel info

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -145,7 +145,7 @@ namespace OpenUtau.App.ViewModels {
             LoadDeepFolders = Preferences.Default.LoadDeepFolderSinger;
             ToolsManager.Inst.Initialize();
             var pattern = new Regex(@"Strings\.([\w-]+)\.axaml");
-            Languages = App.GetLanguages().Keys
+            Languages = AppUtils.GetLanguages().Keys
                 .Select(lang => CultureInfo.GetCultureInfo(lang))
                 .ToList();
             Language = string.IsNullOrEmpty(Preferences.Default.Language)
@@ -249,7 +249,7 @@ namespace OpenUtau.App.ViewModels {
                 .Subscribe(lang => {
                     Preferences.Default.Language = lang?.Name ?? string.Empty;
                     Preferences.Save();
-                    App.SetLanguage(Preferences.Default.Language);
+                    AppUtils.SetLanguage(Preferences.Default.Language);
                 });
             this.WhenAnyValue(vm => vm.SortingOrder)
                 .Subscribe(so => {
@@ -262,7 +262,7 @@ namespace OpenUtau.App.ViewModels {
                     if (!IsThemeEditorOpen) {
                         Preferences.Default.ThemeName = themeName;
                         Preferences.Save();
-                        App.SetTheme();
+                        AppUtils.SetTheme();
                     }
                 });
             this.WhenAnyValue(vm => vm.DegreeStyle)
