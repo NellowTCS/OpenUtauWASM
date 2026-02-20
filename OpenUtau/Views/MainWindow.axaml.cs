@@ -1158,7 +1158,7 @@ namespace OpenUtau.App.Views {
 
                     // Let's attach when needed to avoid startup slowdowns
                     pianoRoll = new PianoRoll(model) {
-                        MainWindow = this
+                        MainWindow = (IMainWindow)this
                     };
 
                     if (Preferences.Default.DetachPianoRoll) {

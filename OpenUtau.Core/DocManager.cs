@@ -22,8 +22,10 @@ namespace OpenUtau.Core {
     }
 
     public class DocManager : SingletonBase<DocManager> {
-        DocManager() {
+        public DocManager() {
+            Log.Information("DocManager constructor called");
             Project = new UProject();
+            Log.Information("DocManager initialized");
         }
 
         private Thread mainThread;

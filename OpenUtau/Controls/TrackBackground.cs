@@ -9,7 +9,7 @@ using OpenUtau.Core.Util;
 using ReactiveUI;
 
 namespace OpenUtau.App.Controls {
-    class TrackBackground : TemplatedControl {
+    public class TrackBackground : TemplatedControl {
         public static readonly DirectProperty<TrackBackground, double> TrackHeightProperty =
             AvaloniaProperty.RegisterDirect<TrackBackground, double>(
                 nameof(TrackHeight),

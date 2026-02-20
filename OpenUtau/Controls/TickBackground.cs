@@ -8,7 +8,7 @@ using OpenUtau.App.ViewModels;
 using ReactiveUI;
 
 namespace OpenUtau.App.Controls {
-    class TickBackground : TemplatedControl {
+    public class TickBackground : TemplatedControl {
         private static readonly IDashStyle DashStyle = new ImmutableDashStyle(new double[] { 2, 4 }, 0);
 
         public static readonly DirectProperty<TickBackground, int> ResolutionProperty =

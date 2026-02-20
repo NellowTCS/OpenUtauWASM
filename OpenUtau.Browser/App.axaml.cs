@@ -1,7 +1,9 @@
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -9,6 +11,7 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Styling;
 using OpenUtau.App.Views;
 using OpenUtau.Colors;
+using OpenUtau.Core;
 using Serilog;
 
 namespace OpenUtau.App {
@@ -23,9 +26,39 @@ namespace OpenUtau.App {
 
         public override void OnFrameworkInitializationCompleted() {
             Log.Information("Framework initialization completed.");
-            if (ApplicationLifetime is ISingleViewApplicationLifetime singleView) {
-                singleView.MainView = new MainWindow();
-            }
+            
+            var mainThread = Thread.CurrentThread;
+            var mainScheduler = TaskScheduler.FromCurrentSynchronizationContext();
+            
+            Task.Run(() => {
+                Log.Information("Initializing OpenUtau.");
+                try {
+                    OpenUtau.Classic.ToolsManager.Inst.Initialize();
+                    Log.Information("ToolsManager initialized");
+                    OpenUtau.Core.SingerManager.Inst.Initialize();
+                    Log.Information("SingerManager initialized");
+                    DocManager.Inst.Initialize(mainThread, mainScheduler);
+                    Log.Information("DocManager initialized");
+                    DocManager.Inst.PostOnUIThread = action => Avalonia.Threading.Dispatcher.UIThread.Post(action);
+                    Log.Information("OpenUtau initialized.");
+                } catch (Exception ex) {
+                    Log.Error(ex, "Failed to initialize OpenUtau");
+                }
+            }).ContinueWith(t => {
+                if (t.IsFaulted) {
+                    Log.Error(t.Exception?.Flatten(), "Failed to initialize OpenUtau.");
+                    return;
+                }
+                Log.Information("Creating MainWindow");
+                if (ApplicationLifetime is ISingleViewApplicationLifetime singleView) {
+                    var mainWindow = new BrowserMainWindow();
+                    Log.Information("MainWindow created, initializing project");
+                    mainWindow.InitProject();
+                    Log.Information("Setting MainView");
+                    singleView.MainView = mainWindow;
+                    Log.Information("MainView set");
+                }
+            }, CancellationToken.None, TaskContinuationOptions.None, mainScheduler);
 
             base.OnFrameworkInitializationCompleted();
         }

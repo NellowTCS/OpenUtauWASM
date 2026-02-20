@@ -11,7 +11,7 @@ using OpenUtau.Core.Ustx;
 using ReactiveUI;
 
 namespace OpenUtau.App.Controls {
-    class PartsCanvas : Canvas {
+    public class PartsCanvas : Canvas {
         public static readonly DirectProperty<PartsCanvas, double> TickWidthProperty =
             AvaloniaProperty.RegisterDirect<PartsCanvas, double>(
                 nameof(TickWidth),

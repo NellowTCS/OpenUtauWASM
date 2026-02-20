@@ -16,7 +16,7 @@ using System.Threading;
 using NWaves.Signals;
 
 namespace OpenUtau.App.Controls {
-    class PartControl : Control, IDisposable, IProgress<int> {
+    public class PartControl : Control, IDisposable, IProgress<int> {
         public static readonly DirectProperty<PartControl, double> TickWidthProperty =
             AvaloniaProperty.RegisterDirect<PartControl, double>(
                 nameof(TickWidth),

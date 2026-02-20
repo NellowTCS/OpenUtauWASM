@@ -1,11 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup Condition=" '$(OS)' == 'Windows_NT' ">
-    <TargetFramework>net8.0-windows</TargetFramework>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(OS)' != 'Windows_NT' ">
-    <TargetFramework>net8.0</TargetFramework>
-  </PropertyGroup>
   <PropertyGroup>
+    <TargetFrameworks>net8.0;net8.0-windows;net9.0-browser</TargetFrameworks>
     <OutputType>Library</OutputType>
     <SatelliteResourceLanguages>none</SatelliteResourceLanguages>
     <Nullable>enable</Nullable>
@@ -13,8 +8,12 @@
     <Version>0.0.0</Version>
     <ApplicationIcon>Assets\open-utau.ico</ApplicationIcon>
     <PublishReadyToRun>true</PublishReadyToRun>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net9.0-browser'">
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+  </PropertyGroup>
+  <PropertyGroup>
     <DebugType>embedded</DebugType>
-    <StartupObject />
   </PropertyGroup>
   <PropertyGroup>
     <CFBundleName>OpenUtau</CFBundleName>

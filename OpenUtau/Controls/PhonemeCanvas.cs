@@ -10,7 +10,7 @@ using OpenUtau.Core.Ustx;
 using ReactiveUI;
 
 namespace OpenUtau.App.Controls {
-    class PhonemeCanvas : Control {
+    public class PhonemeCanvas : Control {
         public static readonly DirectProperty<PhonemeCanvas, IBrush> BackgroundProperty =
             AvaloniaProperty.RegisterDirect<PhonemeCanvas, IBrush>(
                 nameof(Background),

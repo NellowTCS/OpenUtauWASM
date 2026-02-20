@@ -20,14 +20,14 @@ using ReactiveUI;
 using Serilog;
 
 namespace OpenUtau.App.Controls {
-    interface IValueTip {
+    public interface IValueTip {
         void ShowValueTip();
         void HideValueTip();
         void UpdateValueTip(string text);
     }
 
     public partial class PianoRoll : UserControl, IValueTip, ICmdSubscriber {
-        public MainWindow? MainWindow { get; set; }
+        public IMainWindow? MainWindow { get; set; }
         public PianoRollViewModel ViewModel;
 
         private readonly KeyModifiers cmdKey =

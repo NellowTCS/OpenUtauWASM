@@ -12,7 +12,7 @@ using ReactiveUI;
 namespace OpenUtau.App.Controls {
     public enum ExpDisMode { Hidden, Visible, Shadow };
 
-    class ExpressionCanvas : Control {
+    public class ExpressionCanvas : Control {
         public static readonly DirectProperty<ExpressionCanvas, double> TickWidthProperty =
             AvaloniaProperty.RegisterDirect<ExpressionCanvas, double>(
                 nameof(TickWidth),

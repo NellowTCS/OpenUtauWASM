@@ -38,7 +38,7 @@ namespace OpenUtau.App.Views {
         }
     }
 
-    internal class PartSelectionEditState : PartEditState {
+    public class PartSelectionEditState : PartEditState {
         private int startTick;
         private int startTrack;
         public readonly Rectangle selectionBox;
@@ -83,7 +83,7 @@ namespace OpenUtau.App.Views {
         }
     }
 
-    internal class PartMoveEditState : PartEditState {
+    public class PartMoveEditState : PartEditState {
         public readonly UPart part;
         public readonly bool isVoice;
         private double xOffset;
@@ -154,7 +154,7 @@ namespace OpenUtau.App.Views {
         }
     }
 
-    internal class PartResizeEditState : PartEditState {
+    public class PartResizeEditState : PartEditState {
         public readonly UPart part;
         public readonly bool fromStart;
         protected override string? commandNameKey => "command.part.edit";
@@ -195,7 +195,7 @@ namespace OpenUtau.App.Views {
         }
     }
 
-    internal class PartEraseEditState : PartEditState {
+    public class PartEraseEditState : PartEditState {
         public override MouseButton MouseButton => MouseButton.Right;
         protected override string? commandNameKey => "command.part.delete";
 
@@ -209,7 +209,7 @@ namespace OpenUtau.App.Views {
         }
     }
 
-    internal class PartPanningState : PartEditState {
+    public class PartPanningState : PartEditState {
         public override MouseButton MouseButton => MouseButton.Middle;
         public PartPanningState(Control control, MainWindowViewModel vm) : base(control, vm) { }
         public override void Begin(IPointer pointer, Point point) {

@@ -16,7 +16,7 @@ using NWaves.Filters.Fda;
 using NWaves.Utils;
 
 namespace OpenUtau.App.Controls {
-    class OtoPlot : Control {
+    public class OtoPlot : Control {
         public struct OtoPlotTiming {
             public double cutoff;
             public double offset;

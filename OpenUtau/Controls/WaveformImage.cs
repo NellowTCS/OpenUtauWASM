@@ -10,7 +10,7 @@ using ReactiveUI;
 using Serilog;
 
 namespace OpenUtau.App.Controls {
-    class WaveformImage : Control {
+    public class WaveformImage : Control {
         public static readonly DirectProperty<WaveformImage, double> TickWidthProperty =
             AvaloniaProperty.RegisterDirect<WaveformImage, double>(
                 nameof(TickWidth),

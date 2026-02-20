@@ -12,7 +12,7 @@ using OpenUtau.Core.Ustx;
 using OpenUtau.Core.Util;
 
 namespace OpenUtau.App.Views {
-    class KeyboardPlayState {
+    public class KeyboardPlayState {
         private readonly TrackBackground element;
         private readonly PianoRollViewModel vm;
         private int activeTone;
@@ -41,7 +41,7 @@ namespace OpenUtau.App.Views {
         }
     }
 
-    class NoteEditState {
+    public class NoteEditState {
         public virtual MouseButton MouseButton => MouseButton.Left;
         public readonly Control control;
         public readonly PianoRollViewModel vm;
@@ -86,7 +86,7 @@ namespace OpenUtau.App.Views {
         }
     }
 
-    class NoteSelectionEditState : NoteEditState {
+    public class NoteSelectionEditState : NoteEditState {
         public readonly Rectangle selectionBox;
         protected override bool ShowValueTip => false;
         private int startTick;
@@ -136,7 +136,7 @@ namespace OpenUtau.App.Views {
         }
     }
 
-    class NoteMoveEditState : NoteEditState {
+    public class NoteMoveEditState : NoteEditState {
         public readonly UNote note;
         private double xOffset;
         protected override bool ShowValueTip => false;
@@ -213,7 +213,7 @@ namespace OpenUtau.App.Views {
         }
     }
 
-    class NoteDrawEditState : NoteEditState {
+    public class NoteDrawEditState : NoteEditState {
         private UNote? note;
         private bool playTone;
         private int activeTone;
@@ -292,7 +292,7 @@ namespace OpenUtau.App.Views {
         }
     }
 
-    class NoteResizeEditState : NoteEditState {
+    public class NoteResizeEditState : NoteEditState {
         public readonly UNote note;
         public readonly UNote? neighborNote;
         public readonly bool resizeNeighbor;
@@ -385,7 +385,7 @@ namespace OpenUtau.App.Views {
         }
     }
 
-    class NoteSplitEditState : NoteEditState {
+    public class NoteSplitEditState : NoteEditState {
         public readonly UNote note;
         private UNote? newNote;
         private int oldDur;
@@ -505,7 +505,7 @@ namespace OpenUtau.App.Views {
         }
     }
 
-    class NoteEraseEditState : NoteEditState {
+    public class NoteEraseEditState : NoteEditState {
         public override MouseButton MouseButton => mouseButton;
         private MouseButton mouseButton;
         protected override bool ShowValueTip => false;
@@ -527,7 +527,7 @@ namespace OpenUtau.App.Views {
         }
     }
 
-    class NotePanningState : NoteEditState {
+    public class NotePanningState : NoteEditState {
         public override MouseButton MouseButton => MouseButton.Middle;
         protected override bool ShowValueTip => false;
         public NotePanningState(

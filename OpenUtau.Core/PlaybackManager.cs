@@ -167,7 +167,7 @@ namespace OpenUtau.Core {
     }
 
     public class PlaybackManager : SingletonBase<PlaybackManager>, ICmdSubscriber {
-        private PlaybackManager() {
+        public PlaybackManager() {
             DocManager.Inst.AddSubscriber(this);
             try {
                 Directory.CreateDirectory(PathManager.Inst.CachePath);
