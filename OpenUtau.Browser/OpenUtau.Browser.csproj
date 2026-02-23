@@ -1,10 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk.WebAssembly">
-<PropertyGroup>
-    <TargetFramework>net9.0-browser</TargetFramework>
-    <OutputType>Exe</OutputType>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <Nullable>enable</Nullable>
-    <WasmBuildNative>true</WasmBuildNative>
+    <PropertyGroup>
+      <TargetFramework>net9.0-browser</TargetFramework>
+      <OutputType>Exe</OutputType>
+      <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+      <Nullable>enable</Nullable>
+      <WasmBuildNative>true</WasmBuildNative>
+      <PublishTrimmed>false</PublishTrimmed>
+      <PublishReadyToRun>false</PublishReadyToRun>
+      <WasmInitialHeapSize>209715200</WasmInitialHeapSize>
   </PropertyGroup>
   <PropertyGroup>
     <CFBundleName>OpenUtau</CFBundleName>
@@ -57,8 +60,7 @@
     <PackageReference Include="Avalonia.Diagnostics" Version="11.2.4" />
     <PackageReference Include="Avalonia.ReactiveUI" Version="11.2.4" />
     <PackageReference Include="SkiaSharp" Version="2.88.9" />
-    <PackageReference Include="SkiaSharp.Views.Blazor" Version="2.88.9" />
-    <PackageReference Include="SkiaSharp.NativeAssets.WebAssembly" Version="2.88.9" />
+geReference Include="SkiaSharp.NativeAssets.WebAssembly" Version="2.88.9" />
     <PackageReference Include="Serilog" Version="4.1.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
     <PackageReference Include="Serilog.Sinks.Debug" Version="3.0.0" />
