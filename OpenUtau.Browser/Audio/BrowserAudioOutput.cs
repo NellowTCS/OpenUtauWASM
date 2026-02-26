@@ -236,18 +236,17 @@ namespace OpenUtau.Browser.Audio
             {
                 this.frequency = frequency;
                 this.sampleRate = sampleRate;
-                this.WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, 2);
+                this.WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, 1);
             }
             
             public int Read(float[] buffer, int offset, int count)
             {
                 double phaseIncrement = 2 * Math.PI * frequency / sampleRate;
                 
-                for (int i = 0; i < count; i += 2)
+                for (int i = 0; i < count; i++)
                 {
                     double sample = Math.Sin(phase) * 0.3; // 30% volume
-                    buffer[offset + i] = (float)sample;     // Left
-                    buffer[offset + i + 1] = (float)sample; // Right
+                    buffer[offset + i] = (float)sample;
                     phase += phaseIncrement;
                     if (phase > 2 * Math.PI) phase -= 2 * Math.PI;
                 }

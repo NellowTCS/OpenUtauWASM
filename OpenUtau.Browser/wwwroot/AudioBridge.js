@@ -158,21 +158,25 @@ export function setAudioCallback() {
 }
 
 // Start playback
-export async function startPlayback() {
+export function startPlayback() {
     if (!audioContext) return;
     
     if (audioContext.state === 'suspended') {
-        await audioContext.resume();
+        audioContext.resume();
     }
     
     if (!audioWorklet) {
-        const workletReady = await registerAudioWorklet();
-        if (!workletReady) return;
-        await createWorkletNode();
+        registerAudioWorklet().then(workletReady => {
+            if (!workletReady) return;
+            createWorkletNode().then(() => {
+                isPlaying = true;
+                console.log('[AudioBridge] Playback started');
+            });
+        });
+    } else {
+        isPlaying = true;
+        console.log('[AudioBridge] Playback started');
     }
-    
-    isPlaying = true;
-    console.log('[AudioBridge] Playback started');
 }
 
 // Stop playback

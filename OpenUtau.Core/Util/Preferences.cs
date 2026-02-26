@@ -23,7 +23,11 @@ namespace OpenUtau.Core.Util {
                 var prefsPath = PathManager.Inst.PrefsFilePath;
                 var json = JsonConvert.SerializeObject(Default, Formatting.Indented);
                 var bytes = Encoding.UTF8.GetBytes(json);
-                _ = Storage.Backend.WriteAsync(prefsPath, bytes);
+                var dir = Path.GetDirectoryName(prefsPath);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) {
+                    Directory.CreateDirectory(dir);
+                }
+                File.WriteAllBytes(prefsPath, bytes);
             } catch (Exception e) {
                 Log.Error(e, "Failed to save prefs.");
             }
@@ -104,9 +108,8 @@ namespace OpenUtau.Core.Util {
         private static void Load() {
             try {
                 var prefsPath = PathManager.Inst.PrefsFilePath;
-                var exists = Task.Run(() => Storage.Backend.ExistsAsync(prefsPath)).Result;
-                if (exists) {
-                    var bytes = Task.Run(() => Storage.Backend.ReadAsync(prefsPath)).Result;
+                if (File.Exists(prefsPath)) {
+                    var bytes = File.ReadAllBytes(prefsPath);
                     if (bytes != null) {
                         var json = Encoding.UTF8.GetString(bytes);
                         Default = JsonConvert.DeserializeObject<SerializablePreferences>(json);

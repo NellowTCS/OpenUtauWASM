@@ -360,11 +360,21 @@ void worldline_audio_set_callback(ou_audio_data_callback_t callback) {
 // It will call the registered callback which is actually a JS function pointer
 EMSCRIPTEN_KEEPALIVE
 void worldline_audio_request_data(float* buffer, int channels, int frame_count) {
+    if (!buffer || channels <= 0 || frame_count <= 0) {
+        return;
+    }
+    if (channels > 128 || frame_count > 1000000) {
+        return;
+    }
+
     if (g_audio_callback) {
         g_audio_callback(buffer, channels, frame_count);
     } else {
         // Fill with silence
-        memset(buffer, 0, channels * frame_count * sizeof(float));
+        size_t byte_count = static_cast<size_t>(channels) * static_cast<size_t>(frame_count) * sizeof(float);
+        if (byte_count > 0) {
+            memset(buffer, 0, byte_count);
+        }
     }
 }
 
