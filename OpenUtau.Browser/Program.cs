@@ -88,16 +88,26 @@ namespace OpenUtau.App {
         }
 
         public static void InitLogging() {
-            Log.Logger = new LoggerConfiguration()
-                .MinimumLevel.Verbose()
-                .WriteTo.Debug()
-                .WriteTo.Logger(lc => lc
-                    .MinimumLevel.Information()
-                    .WriteTo.Console())
-                .WriteTo.Logger(lc => lc
-                    .MinimumLevel.ControlledBy(DebugViewModel.Sink.Inst.LevelSwitch)
-                    .WriteTo.Sink(DebugViewModel.Sink.Inst))
-                .CreateLogger();
+            var loggerConfig = new LoggerConfiguration()
+                .MinimumLevel.Verbose();
+            
+            if (OS.IsBrowser()) {
+                // Browser: write to console (maps to browser console)
+                loggerConfig.WriteTo.Console();
+            } else {
+                // Desktop: write to debug and console
+                loggerConfig
+                    .WriteTo.Debug()
+                    .WriteTo.Logger(lc => lc
+                        .MinimumLevel.Information()
+                        .WriteTo.Console())
+                    .WriteTo.Logger(lc => lc
+                        .MinimumLevel.ControlledBy(DebugViewModel.Sink.Inst.LevelSwitch)
+                        .WriteTo.Sink(DebugViewModel.Sink.Inst));
+            }
+            
+            Log.Logger = loggerConfig.CreateLogger();
+            
             AppDomain.CurrentDomain.UnhandledException += new UnhandledExceptionEventHandler((sender, args) => {
                 Log.Error((Exception)args.ExceptionObject, "Unhandled exception");
             });

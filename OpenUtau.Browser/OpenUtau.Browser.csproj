@@ -21,7 +21,7 @@
     <CFBundleIconFile>OpenUtau.icns</CFBundleIconFile>
     <NSPrincipalClass>NSApplication</NSPrincipalClass>
     <WasmBuildNative>true</WasmBuildNative>
-    <WasmEnableThreads>false</WasmEnableThreads>    
+      <WasmEnableThreads>true</WasmEnableThreads>
     <NSHighResolutionCapable>true</NSHighResolutionCapable>
     <CFBundleDocumentTypes>
         <array>
@@ -74,6 +74,9 @@
   </ItemGroup>
   <ItemGroup Condition="'$(Configuration)'=='DEBUG'">
     <None Include="..\runtimes\**" CopyToOutputDirectory="PreserveNewest" LinkBase="runtimes\" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'browser-wasm'">
+    <None Include="..\runtimes\wasm\**" CopyToOutputDirectory="PreserveNewest" LinkBase="runtimes\" />
   </ItemGroup>
   <ItemGroup Condition="'$(RuntimeIdentifier)' == 'win-x64'">
     <None Include="..\runtimes\win-x64\native\**" CopyToOutputDirectory="PreserveNewest" LinkBase="." />

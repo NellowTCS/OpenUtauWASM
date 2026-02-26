@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Runtime.InteropServices.JavaScript;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
@@ -10,6 +11,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Styling;
 using OpenUtau.App.Views;
+using OpenUtau.Browser.Audio;
 using OpenUtau.Colors;
 using OpenUtau.Core;
 using Serilog;
@@ -43,6 +45,7 @@ namespace OpenUtau.App {
                     Log.Information("OpenUtau initialized.");
                 } catch (Exception ex) {
                     Log.Error(ex, "Failed to initialize OpenUtau");
+                    Console.WriteLine("[App] ERROR: " + ex);
                 }
             }).ContinueWith(t => {
                 if (t.IsFaulted) {
@@ -154,6 +157,35 @@ namespace OpenUtau.App {
             foreach (var item in resDict) {
                 res![item.Key] = item.Value;
             }
+        }
+
+        private static async void InitializeBrowserAudio() {
+            Console.WriteLine("[Audio] InitializeBrowserAudio START");
+            try {
+                Console.WriteLine("[Audio] Importing AudioBridge...");
+                
+                // Import the AudioBridge JS module
+                await JSHost.ImportAsync("AudioBridge", "./AudioBridge.js");
+                
+                Console.WriteLine("[Audio] Creating BrowserAudioOutput...");
+                // Set BrowserAudioOutput as the audio output
+                var audioOutput = new Browser.Audio.BrowserAudioOutput();
+                PlaybackManager.Inst.AudioOutput = audioOutput;
+                
+                Console.WriteLine("[Audio] BrowserAudioOutput created");
+                Log.Information("Browser audio initialized successfully");
+                
+                // Play test tone after a short delay to verify audio works
+                await System.Threading.Tasks.Task.Delay(3000);
+                Console.WriteLine("[Audio] Playing test tone now!");
+                audioOutput.PlayTestTone();
+                Console.WriteLine("[Audio] Test tone triggered. you should hear a 440Hz sine wave");
+                
+            } catch (Exception ex) {
+                Console.WriteLine("[Audio] ERROR: " + ex);
+                Log.Error(ex, "Failed to initialize browser audio");
+            }
+            Console.WriteLine("[Audio] InitializeBrowserAudio END");
         }
     }
 }
