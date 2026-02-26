@@ -171,7 +171,7 @@ namespace OpenUtau.App {
                 
                 Console.WriteLine("[Audio] Creating BrowserAudioOutput...");
                 // Set BrowserAudioOutput as the audio output
-                var audioOutput = new Browser.Audio.BrowserAudioOutput();
+                var audioOutput = new OpenUtau.Browser.Audio.BrowserAudioOutput();
                 PlaybackManager.Inst.AudioOutput = audioOutput;
                 
                 Console.WriteLine("[Audio] BrowserAudioOutput created");
