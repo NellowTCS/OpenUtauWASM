@@ -49,7 +49,7 @@ namespace OpenUtau.App {
                     Log.Error(ex, "Failed to initialize OpenUtau");
                     Console.WriteLine("[App] ERROR: " + ex);
                 }
-            }).ContinueWith(t => {
+            }).ContinueWith(async t => {
                 if (t.IsFaulted) {
                     Log.Error(t.Exception?.Flatten(), "Failed to initialize OpenUtau.");
                     return;
@@ -64,10 +64,10 @@ Log.Information("Creating MainWindow");
                     Log.Information("MainView set");
                     
                     if (OS.IsBrowser()) {
-                        InitializeBrowserAudio();
+                        await InitializeBrowserAudio();
                     }
                 }
-            }, CancellationToken.None, TaskContinuationOptions.None, mainScheduler);
+            }, CancellationToken.None, TaskContinuationOptions.None, mainScheduler).Unwrap();
 
             base.OnFrameworkInitializationCompleted();
         }
@@ -165,7 +165,7 @@ Log.Information("Creating MainWindow");
             }
         }
 
-private static async void InitializeBrowserAudio() {
+private static async Task InitializeBrowserAudio() {
             Console.WriteLine("[Audio] InitializeBrowserAudio START");
             try {
               

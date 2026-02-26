@@ -35,4 +35,4 @@ console.log('[main.js] Running .NET main...');
 // Use the runtime returned by `create()` to run the app
 await dotnetRuntime.runMain(config.mainAssemblyName, [globalThis.location.href]);
 
-console.log('[main.js] App started!');
+console.log('[main.js] App started successfully!');

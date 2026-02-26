@@ -54,16 +54,24 @@ namespace OpenUtau.Browser.Audio
             try
             {
                 // Initialize Web Audio API
+                Log.Information("BrowserAudioOutput: Calling InitAudio...");
                 await AudioBridge.InitAudio();
+                Log.Information("BrowserAudioOutput: InitAudio completed");
                 
                 // Load worldline WASM (includes miniaudio)
+                Log.Information("BrowserAudioOutput: Calling InitWorldline...");
                 await AudioBridge.InitWorldline();
+                Log.Information("BrowserAudioOutput: InitWorldline completed");
                 
                 // Register AudioWorklet processor
+                Log.Information("BrowserAudioOutput: Calling RegisterAudioWorklet...");
                 await AudioBridge.RegisterAudioWorklet();
+                Log.Information("BrowserAudioOutput: RegisterAudioWorklet completed");
                 
                 // Create AudioWorklet node
+                Log.Information("BrowserAudioOutput: Calling CreateWorkletNode...");
                 var nodeReady = await AudioBridge.CreateWorkletNode();
+                Log.Information("BrowserAudioOutput: CreateWorkletNode completed: {NodeReady}", nodeReady);
                 if (!nodeReady)
                 {
                     Log.Warning("BrowserAudioOutput: AudioWorklet node creation failed, falling back");
@@ -116,6 +124,9 @@ namespace OpenUtau.Browser.Audio
             // Ensure AudioContext is running (requires user gesture)
             _ = AudioBridge.ResumeAudio();
             
+            // Enable JS-side playback flag
+            AudioBridge.StartPlayback();
+            
             // Start the worklet feed loop
             AudioBridge.StartContinuousFeed(20); // Feed every 20ms
             
@@ -138,6 +149,7 @@ namespace OpenUtau.Browser.Audio
         public void Stop()
         {
             AudioBridge.StopContinuousFeed();
+            AudioBridge.StopPlayback();
             PlaybackState = PlaybackState.Stopped;
             
             // Clear ring buffer
@@ -177,10 +189,24 @@ namespace OpenUtau.Browser.Audio
             // Update time position
             currentTimeMs += samplesRead / (double)Channels * 1000.0 / SampleRate;
             
-            // Send to worklet
+            // Copy samples to ring buffer
+            if (ringBuffer != null)
+            {
+                lock (ringLock)
+                {
+                    for (int i = 0; i < samplesRead; i++)
+                    {
+                        ringBuffer[ringWritePos] = buffer[i];
+                        ringWritePos = (ringWritePos + 1) % ringBuffer.Length;
+                    }
+                    ringAvailable += samplesRead;
+                }
+            }
+            
+            // For now, send silence - audio transfer needs different approacback
             if (isWorkletReady)
             {
-                AudioBridge.FeedAudioData();
+                // AudioBridge.FeedAudioData(); // TODO: fix array marshalling
             }
         }
 
@@ -199,8 +225,7 @@ namespace OpenUtau.Browser.Audio
 
         /// Simple sine wave generator for testing
         /// todo: Remove after testing
-        private class TestToneProvider : ISampleProvider
-        {
+        private class TestToneProvider : ISampleProvider       {
             private readonly double frequency;
             private readonly int sampleRate;
             private double phase;
@@ -308,6 +333,12 @@ namespace OpenUtau.Browser.Audio
 
         [JSImport("setAudioCallback", "AudioBridge")]
         public static partial void SetAudioCallback();
+
+        [JSImport("startPlayback", "AudioBridge")]
+        public static partial void StartPlayback();
+
+        [JSImport("stopPlayback", "AudioBridge")]
+        public static partial void StopPlayback();
 
         [JSImport("startContinuousFeed", "AudioBridge")]
         public static partial void StartContinuousFeed(int intervalMs);
