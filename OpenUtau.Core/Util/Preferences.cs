@@ -1,9 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Text;
+using System.Threading.Tasks;
 using Newtonsoft.Json;
 using OpenUtau.Core.Render;
 using Serilog;
@@ -19,9 +20,10 @@ namespace OpenUtau.Core.Util {
 
         public static void Save() {
             try {
-                File.WriteAllText(PathManager.Inst.PrefsFilePath,
-                    JsonConvert.SerializeObject(Default, Formatting.Indented),
-                    Encoding.UTF8);
+                var prefsPath = PathManager.Inst.PrefsFilePath;
+                var json = JsonConvert.SerializeObject(Default, Formatting.Indented);
+                var bytes = Encoding.UTF8.GetBytes(json);
+                _ = Storage.Backend.WriteAsync(prefsPath, bytes);
             } catch (Exception e) {
                 Log.Error(e, "Failed to save prefs.");
             }
@@ -101,21 +103,26 @@ namespace OpenUtau.Core.Util {
 
         private static void Load() {
             try {
-                if (File.Exists(PathManager.Inst.PrefsFilePath)) {
-                    Default = JsonConvert.DeserializeObject<SerializablePreferences>(
-                        File.ReadAllText(PathManager.Inst.PrefsFilePath, Encoding.UTF8));
-                    if(Default == null) {
+                var prefsPath = PathManager.Inst.PrefsFilePath;
+                var exists = Task.Run(() => Storage.Backend.ExistsAsync(prefsPath)).Result;
+                if (exists) {
+                    var bytes = Task.Run(() => Storage.Backend.ReadAsync(prefsPath)).Result;
+                    if (bytes != null) {
+                        var json = Encoding.UTF8.GetString(bytes);
+                        Default = JsonConvert.DeserializeObject<SerializablePreferences>(json);
+                    }
+                    if (Default == null) {
                         Reset();
                         return;
                     }
-
-                    if (!ValidString(new Action(() => CultureInfo.GetCultureInfo(Default.Language)))) Default.Language = string.Empty;
-                    if (!ValidString(new Action(() => CultureInfo.GetCultureInfo(Default.SortingOrder)))) Default.SortingOrder = string.Empty;
-                    if (!Renderers.getRendererOptions().Contains(Default.DefaultRenderer)) Default.DefaultRenderer = string.Empty;
-                    if (!Onnx.getRunnerOptions().Contains(Default.OnnxRunner)) Default.OnnxRunner = string.Empty;
                 } else {
-                    Reset();
+                    Default = new SerializablePreferences();
                 }
+
+                if (!ValidString(new Action(() => CultureInfo.GetCultureInfo(Default.Language)))) Default.Language = string.Empty;
+                if (!ValidString(new Action(() => CultureInfo.GetCultureInfo(Default.SortingOrder)))) Default.SortingOrder = string.Empty;
+                if (!Renderers.getRendererOptions().Contains(Default.DefaultRenderer)) Default.DefaultRenderer = string.Empty;
+                if (!Onnx.getRunnerOptions().Contains(Default.OnnxRunner)) Default.OnnxRunner = string.Empty;
             } catch (Exception e) {
                 Log.Error(e, "Failed to load prefs.");
                 Default = new SerializablePreferences();

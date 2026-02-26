@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.JavaScript;
 using System.Text;
 using System.Threading.Tasks;
 using Avalonia;
@@ -11,6 +12,7 @@ using Avalonia.Browser;
 using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.ReactiveUI;
+using OpenUtau.App.Browser;
 using OpenUtau.App.ViewModels;
 using OpenUtau.Core;
 using Serilog;
@@ -77,6 +79,14 @@ namespace OpenUtau.App {
 
         public static async Task Run(string[] args) {
             if (OS.IsBrowser()) {
+                try {
+                    Log.Information("Importing opfsHelper...");
+                    await JSHost.ImportAsync("opfsHelper", "/opfsHelper.js");
+                    Log.Information("Importing bookmarkHelper...");
+                    await JSHost.ImportAsync("bookmarkHelper", "/bookmarkHelper.js");
+                } catch (Exception ex) {
+                    Log.Error(ex, "Failed to import JS modules");
+                }
                 await BuildAvaloniaApp()
                     .UseBrowser()
                     .StartBrowserAppAsync("out");
