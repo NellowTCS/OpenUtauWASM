@@ -13,6 +13,7 @@ using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.ReactiveUI;
 using OpenUtau.App.Browser;
+using OpenUtau.App.Browser;
 using OpenUtau.App.ViewModels;
 using OpenUtau.Core;
 using Serilog;
@@ -79,11 +80,14 @@ namespace OpenUtau.App {
 
         public static async Task Run(string[] args) {
             if (OS.IsBrowser()) {
-                try {
+               try {
                     Log.Information("Importing opfsHelper...");
                     await JSHost.ImportAsync("opfsHelper", "/opfsHelper.js");
                     Log.Information("Importing bookmarkHelper...");
                     await JSHost.ImportAsync("bookmarkHelper", "/bookmarkHelper.js");
+                    
+                    Storage.SetBackend(new OpfsStorageBackend());
+                    Log.Information("OPFS storage backend registered");
                 } catch (Exception ex) {
                     Log.Error(ex, "Failed to import JS modules");
                 }

@@ -54,7 +54,7 @@ namespace OpenUtau.App {
                     Log.Error(t.Exception?.Flatten(), "Failed to initialize OpenUtau.");
                     return;
                 }
-                Log.Information("Creating MainWindow");
+Log.Information("Creating MainWindow");
                 if (ApplicationLifetime is ISingleViewApplicationLifetime singleView) {
                     var mainWindow = new BrowserMainWindow();
                     Log.Information("MainWindow created, initializing project");
@@ -62,6 +62,10 @@ namespace OpenUtau.App {
                     Log.Information("Setting MainView");
                     singleView.MainView = mainWindow;
                     Log.Information("MainView set");
+                    
+                    if (OS.IsBrowser()) {
+                        InitializeBrowserAudio();
+                    }
                 }
             }, CancellationToken.None, TaskContinuationOptions.None, mainScheduler);
 
@@ -161,15 +165,15 @@ namespace OpenUtau.App {
             }
         }
 
-        private static async void InitializeBrowserAudio() {
+private static async void InitializeBrowserAudio() {
             Console.WriteLine("[Audio] InitializeBrowserAudio START");
             try {
+              
                 Console.WriteLine("[Audio] Importing AudioBridge...");
                 
                 // Import the AudioBridge JS module
                 await JSHost.ImportAsync("AudioBridge", "./AudioBridge.js");
-                
-                Console.WriteLine("[Audio] Creating BrowserAudioOutput...");
+                  Console.WriteLine("[Audio] Creating BrowserAudioOutput...");
                 // Set BrowserAudioOutput as the audio output
                 var audioOutput = new OpenUtau.Browser.Audio.BrowserAudioOutput();
                 PlaybackManager.Inst.AudioOutput = audioOutput;

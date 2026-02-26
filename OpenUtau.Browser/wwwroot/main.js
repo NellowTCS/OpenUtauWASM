@@ -9,7 +9,10 @@ const script = document.createElement('script');
 script.src = './runtimes/wasm/worldline_wasm.js';
 document.head.appendChild(script);
 
-await new Promise(resolve => script.onload = resolve);
+await new Promise((resolve, reject) => {
+    script.onload = resolve;
+    script.onerror = () => reject(new Error(`Failed to load ./runtimes/wasm/worldline_wasm.js`));
+});
 console.log('[main.js] Worldline loaded, type:', typeof Worldline);
 
 const dotnetRuntime = await dotnet
