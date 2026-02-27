@@ -224,7 +224,11 @@ jobs:
           dotnet-version: |
             8.0.x
             9.0.x
-      - name: Install WASM Tools workload
+      - name: Install .NET WASM workloads
+        run: |
+          dotnet workload install wasm-tools-net8
+          dotnet workload install wasm-tools-net9
+      - name: Restore .NET workloads
         run: dotnet workload restore
       - name: Build WASM
         run: dotnet publish OpenUtau.Browser -c Release -r browser-wasm --framework net9.0-browser --self-contained true -o bin/wasm/
