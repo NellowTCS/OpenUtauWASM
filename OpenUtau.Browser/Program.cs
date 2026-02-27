@@ -17,6 +17,7 @@ using OpenUtau.App.Browser;
 using OpenUtau.App.ViewModels;
 using OpenUtau.Core;
 using Serilog;
+using Serilog.Sinks.BrowserConsole;
 
 namespace OpenUtau.App {
     public class Program {
@@ -107,7 +108,7 @@ namespace OpenUtau.App {
             
             if (OS.IsBrowser()) {
                 // Browser: write to console (maps to browser console)
-                loggerConfig.WriteTo.Console();
+                loggerConfig.WriteTo.BrowserConsole();
             } else {
                 // Desktop: write to debug and console
                 loggerConfig
