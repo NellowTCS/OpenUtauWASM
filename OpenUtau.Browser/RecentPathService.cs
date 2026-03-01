@@ -15,28 +15,32 @@ namespace OpenUtau.App.Browser {
         public static async System.Threading.Tasks.Task EnsureInitializedAsync() {
             if (initialized) return;
             try {
-                await JSHost.ImportAsync("bookmarkHelper", "/bookmarkHelper.js");
+                await JSHost.ImportAsync("bookmarkHelper", "../bookmarkHelper.js");
                 initialized = true;
             } catch (Exception e) {
                 Log.Error(e, "Failed to initialize recent path service");
+                throw;
             }
         }
 
-        public static void SaveRecentPath(string path, string name) {
+        public static async System.Threading.Tasks.Task SaveRecentPath(string path, string name) {
             try {
+                await EnsureInitializedAsync();
                 SaveRecentPathImpl(path, name);
                 Log.Information("Saved recent path: {Name} = {Path}", name, path);
             } catch (Exception e) {
                 Log.Error(e, "Failed to save recent path: {Name}", name);
+                throw;
             }
         }
 
-        public static string? GetRecentPath(string name) {
+        public static async System.Threading.Tasks.Task<string?> GetRecentPath(string name) {
             try {
+                await EnsureInitializedAsync();
                 return GetRecentPathImpl(name);
             } catch (Exception e) {
                 Log.Error(e, "Failed to get recent path: {Name}", name);
-                return null;
+                throw;
             }
         }
     }

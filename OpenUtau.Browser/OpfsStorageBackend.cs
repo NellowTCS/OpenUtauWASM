@@ -27,6 +27,7 @@ namespace OpenUtau.App.Browser {
             try {
                 await EnsureReadyAsync();
                 await OpfsService.SaveAsync(GetFullPath(path), data);
+                Log.Information("OPFS write succeeded: {Path}, size={Size}", path, data?.Length ?? 0);
             } catch (Exception e) {
                 Log.Error(e, "OPFS write failed: {Path}", path);
                 throw;
