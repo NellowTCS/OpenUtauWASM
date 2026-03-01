@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Runtime.InteropServices.JavaScript;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
@@ -9,7 +10,10 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Styling;
+using Avalonia.Browser;
 using OpenUtau.App.Views;
+using OpenUtau.Browser.Audio;
+using OpenUtau.App.Browser;
 using OpenUtau.Colors;
 using OpenUtau.Core;
 using Serilog;
@@ -43,12 +47,14 @@ namespace OpenUtau.App {
                     Log.Information("OpenUtau initialized.");
                 } catch (Exception ex) {
                     Log.Error(ex, "Failed to initialize OpenUtau");
+                    Console.WriteLine("[App] ERROR: " + ex);
                 }
-            }).ContinueWith(t => {
+            }).ContinueWith(async t => {
                 if (t.IsFaulted) {
                     Log.Error(t.Exception?.Flatten(), "Failed to initialize OpenUtau.");
                     return;
                 }
+                
                 Log.Information("Creating MainWindow");
                 if (ApplicationLifetime is ISingleViewApplicationLifetime singleView) {
                     var mainWindow = new BrowserMainWindow();
@@ -57,8 +63,12 @@ namespace OpenUtau.App {
                     Log.Information("Setting MainView");
                     singleView.MainView = mainWindow;
                     Log.Information("MainView set");
+                    
+                    if (OS.IsBrowser()) {
+                        await InitializeBrowserAudio();
+                    }
                 }
-            }, CancellationToken.None, TaskContinuationOptions.None, mainScheduler);
+            }, CancellationToken.None, TaskContinuationOptions.None, mainScheduler).Unwrap();
 
             base.OnFrameworkInitializationCompleted();
         }
@@ -153,6 +163,27 @@ namespace OpenUtau.App {
             var res = Current?.Resources;
             foreach (var item in resDict) {
                 res![item.Key] = item.Value;
+            }
+        }
+
+        private static async Task InitializeBrowserAudio() {
+            try {
+              
+                Console.WriteLine("[Audio] Importing AudioBridge...");
+                
+                // Import the AudioBridge JS module
+                await JSHost.ImportAsync("AudioBridge", "../AudioBridge.js");
+                  Console.WriteLine("[Audio] Creating BrowserAudioOutput...");
+                // Set BrowserAudioOutput as the audio output
+                var audioOutput = new OpenUtau.Browser.Audio.BrowserAudioOutput();
+                PlaybackManager.Inst.AudioOutput = audioOutput;
+                
+                Console.WriteLine("[Audio] BrowserAudioOutput created");
+                Log.Information("Browser audio initialized successfully");
+
+            } catch (Exception ex) {
+                Console.WriteLine("[Audio] ERROR: " + ex);
+                Log.Error(ex, "Failed to initialize browser audio");
             }
         }
     }

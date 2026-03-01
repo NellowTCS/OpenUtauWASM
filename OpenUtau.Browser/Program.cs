@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.JavaScript;
 using System.Text;
 using System.Threading.Tasks;
 using Avalonia;
@@ -11,9 +12,12 @@ using Avalonia.Browser;
 using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.ReactiveUI;
+using OpenUtau.App.Browser;
+using OpenUtau.App.Browser;
 using OpenUtau.App.ViewModels;
 using OpenUtau.Core;
 using Serilog;
+using Serilog.Sinks.BrowserConsole;
 
 namespace OpenUtau.App {
     public class Program {
@@ -77,6 +81,23 @@ namespace OpenUtau.App {
 
         public static async Task Run(string[] args) {
             if (OS.IsBrowser()) {
+               try {
+                    Console.WriteLine("[Program] Importing opfsHelper via JSHost.ImportAsync...");
+                    Log.Information("Importing opfsHelper...");
+                    await JSHost.ImportAsync("opfsHelper", "../opfsHelper.js");
+                    Console.WriteLine("[Program] Importing bookmarkHelper via JSHost.ImportAsync...");
+                    Log.Information("Importing bookmarkHelper...");
+                    await JSHost.ImportAsync("bookmarkHelper", "../bookmarkHelper.js");
+                    
+                    Storage.SetBackend(new OpfsStorageBackend());
+                    Log.Information("OPFS storage backend registered");
+                    Console.WriteLine("[Program] Ensuring OPFS initialized...");
+                    await OpfsService.EnsureInitialized();
+                    Console.WriteLine("[Program] OPFS initialized successfully");
+                } catch (Exception ex) {
+                    Log.Error(ex, "JSHost.ImportAsync failed for opfsHelper and/or bookmarkHelper; browser startup cannot continue safely");
+                    throw;
+                }
                 await BuildAvaloniaApp()
                     .UseBrowser()
                     .StartBrowserAppAsync("out");
@@ -88,16 +109,26 @@ namespace OpenUtau.App {
         }
 
         public static void InitLogging() {
-            Log.Logger = new LoggerConfiguration()
-                .MinimumLevel.Verbose()
-                .WriteTo.Debug()
-                .WriteTo.Logger(lc => lc
-                    .MinimumLevel.Information()
-                    .WriteTo.Console())
-                .WriteTo.Logger(lc => lc
-                    .MinimumLevel.ControlledBy(DebugViewModel.Sink.Inst.LevelSwitch)
-                    .WriteTo.Sink(DebugViewModel.Sink.Inst))
-                .CreateLogger();
+            var loggerConfig = new LoggerConfiguration()
+                .MinimumLevel.Verbose();
+            
+            if (OS.IsBrowser()) {
+                // Browser: write to console (maps to browser console)
+                loggerConfig.WriteTo.BrowserConsole();
+            } else {
+                // Desktop: write to debug and console
+                loggerConfig
+                    .WriteTo.Debug()
+                    .WriteTo.Logger(lc => lc
+                        .MinimumLevel.Information()
+                        .WriteTo.Console())
+                    .WriteTo.Logger(lc => lc
+                        .MinimumLevel.ControlledBy(DebugViewModel.Sink.Inst.LevelSwitch)
+                        .WriteTo.Sink(DebugViewModel.Sink.Inst));
+            }
+            
+            Log.Logger = loggerConfig.CreateLogger();
+            
             AppDomain.CurrentDomain.UnhandledException += new UnhandledExceptionEventHandler((sender, args) => {
                 Log.Error((Exception)args.ExceptionObject, "Unhandled exception");
             });
