@@ -44,9 +44,17 @@ namespace OpenUtau.Browser.Audio
         {
             try
             {
+                isInitialized = false;
+                isWorkletReady = false;
+
                 // Initialize Web Audio API
                 Log.Information("BrowserAudioOutput: Calling InitAudio...");
-                await AudioBridge.InitAudio();
+                var initAudioReady = await AudioBridge.InitAudio();
+                if (!initAudioReady)
+                {
+                    Log.Error("BrowserAudioOutput: InitAudio returned false");
+                    return;
+                }
                 Log.Information("BrowserAudioOutput: InitAudio completed");
 
                 var browserSampleRate = AudioBridge.GetSampleRate();
@@ -58,12 +66,22 @@ namespace OpenUtau.Browser.Audio
                 
                 // Load worldline WASM (includes miniaudio)
                 Log.Information("BrowserAudioOutput: Calling InitWorldline...");
-                await AudioBridge.InitWorldline();
+                var initWorldlineReady = await AudioBridge.InitWorldline();
+                if (!initWorldlineReady)
+                {
+                    Log.Error("BrowserAudioOutput: InitWorldline returned false");
+                    return;
+                }
                 Log.Information("BrowserAudioOutput: InitWorldline completed");
                 
                 // Register AudioWorklet processor
                 Log.Information("BrowserAudioOutput: Calling RegisterAudioWorklet...");
-                await AudioBridge.RegisterAudioWorklet();
+                var registerWorkletReady = await AudioBridge.RegisterAudioWorklet();
+                if (!registerWorkletReady)
+                {
+                    Log.Error("BrowserAudioOutput: RegisterAudioWorklet returned false");
+                    return;
+                }
                 Log.Information("BrowserAudioOutput: RegisterAudioWorklet completed");
                 
                 // Create AudioWorklet node
@@ -87,6 +105,7 @@ namespace OpenUtau.Browser.Audio
             }
             catch (Exception ex)
             {
+                isInitialized = false;
                 Log.Error(ex, "BrowserAudioOutput: Failed to initialize");
             }
         }

@@ -231,7 +231,7 @@ jobs:
       - name: Restore .NET workloads
         run: dotnet workload restore
       - name: Build WASM
-        run: dotnet publish OpenUtau.Browser -c Release --self-contained true -o bin/wasm/
+        run: dotnet publish OpenUtau.Browser -c Release -r browser-wasm --self-contained true -o bin/wasm/
       - name: Upload WASM Artifact
         uses: actions/upload-artifact@v4
         with:

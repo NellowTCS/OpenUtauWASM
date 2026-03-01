@@ -36,11 +36,13 @@ namespace OpenUtau.App.Browser {
             if (initialized) return;
             try {
                 Log.Information("Importing OPFS module...");
-                await JSHost.ImportAsync("opfsHelper", "/opfsHelper.js");
+                await JSHost.ImportAsync("opfsHelper", "../opfsHelper.js");
+                await InitAsync();
                 initialized = true;
                 Log.Information("OPFS module imported successfully");
             } catch (Exception e) {
                 Log.Error(e, "Failed to initialize OPFS module");
+                throw;
             }
         }
 
@@ -66,19 +68,30 @@ namespace OpenUtau.App.Browser {
                 
                 // First get file size
                 var size = await GetFileSizeAsync(fileName);
-                if (size <= 0) {
+                if (size < 0) {
                     return null;
+                }
+                if (size == 0) {
+                    return Array.Empty<byte>();
                 }
                 
                 // Allocate buffer in C# and pass to JS to fill
                 var buffer = new byte[size];
                 var bytesRead = await ReadFileIntoBufferAsync(fileName, buffer, 0, size);
                 
-                if (bytesRead <= 0) {
+                if (bytesRead < 0) {
                     return null;
+                }
+                if (bytesRead == 0) {
+                    return Array.Empty<byte>();
                 }
                 
                 Log.Information("OPFS loaded: {FileName}, size={Size}", fileName, bytesRead);
+                if (bytesRead < size) {
+                    var truncated = new byte[bytesRead];
+                    Buffer.BlockCopy(buffer, 0, truncated, 0, bytesRead);
+                    return truncated;
+                }
                 return buffer;
             } catch (Exception e) {
                 Log.Error(e, "Failed to load file from OPFS: {FileName}", fileName);
