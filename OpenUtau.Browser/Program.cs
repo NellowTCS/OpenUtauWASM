@@ -82,15 +82,21 @@ namespace OpenUtau.App {
         public static async Task Run(string[] args) {
             if (OS.IsBrowser()) {
                try {
+                    Console.WriteLine("[Program] Importing opfsHelper via JSHost.ImportAsync...");
                     Log.Information("Importing opfsHelper...");
                     await JSHost.ImportAsync("opfsHelper", "../opfsHelper.js");
+                    Console.WriteLine("[Program] Importing bookmarkHelper via JSHost.ImportAsync...");
                     Log.Information("Importing bookmarkHelper...");
                     await JSHost.ImportAsync("bookmarkHelper", "../bookmarkHelper.js");
                     
                     Storage.SetBackend(new OpfsStorageBackend());
                     Log.Information("OPFS storage backend registered");
+                    Console.WriteLine("[Program] Ensuring OPFS initialized...");
+                    await OpfsService.EnsureInitialized();
+                    Console.WriteLine("[Program] OPFS initialized successfully");
                 } catch (Exception ex) {
-                    Log.Error(ex, "Failed to import JS modules");
+                    Log.Error(ex, "JSHost.ImportAsync failed for opfsHelper and/or bookmarkHelper; browser startup cannot continue safely");
+                    throw;
                 }
                 await BuildAvaloniaApp()
                     .UseBrowser()

@@ -10,11 +10,33 @@ async function init() {
     console.log("[OPFS] init done");
 }
 
+function normalizeSegments(path) {
+    return String(path ?? "")
+        .replaceAll("\\", "/")
+        .split("/")
+        .filter(Boolean);
+}
+
+async function getParentDirAndName(path, createParents = false) {
+    await init();
+    const segments = normalizeSegments(path);
+    if (segments.length === 0) {
+        throw new TypeError("Path must include at least one segment.");
+    }
+
+    let dir = opfsRoot;
+    for (let i = 0; i < segments.length - 1; i++) {
+        dir = await dir.getDirectoryHandle(segments[i], { create: createParents });
+    }
+
+    return { dir, name: segments[segments.length - 1] };
+}
+
 async function writeFile(fileName, uint8Array) {
     console.log("[OPFS] writeFile called:", fileName, "size:", uint8Array?.length);
-    await init();
+    const { dir, name } = await getParentDirAndName(fileName, true);
     console.log("[OPFS] Getting file handle:", fileName);
-    const fileHandle = await opfsRoot.getFileHandle(fileName, { create: true });
+    const fileHandle = await dir.getFileHandle(name, { create: true });
     console.log("[OPFS] Creating writable...");
     const writable = await fileHandle.createWritable();
     console.log("[OPFS] Writing data...");
@@ -27,10 +49,10 @@ async function writeFile(fileName, uint8Array) {
 // Read file into provided buffer - JS fills the buffer at offset
 async function readFileIntoBuffer(fileName, buffer, offset, length) {
     console.log("[OPFS] readFileIntoBuffer called:", fileName, "length:", length);
-    await init();
     try {
+        const { dir, name } = await getParentDirAndName(fileName, false);
         console.log("[OPFS] Getting file handle:", fileName);
-        const fileHandle = await opfsRoot.getFileHandle(fileName);
+        const fileHandle = await dir.getFileHandle(name);
         console.log("[OPFS] Getting file...");
         const file = await fileHandle.getFile();
         console.log("[OPFS] Getting arrayBuffer...");
@@ -52,9 +74,9 @@ async function readFileIntoBuffer(fileName, buffer, offset, length) {
 // Get file size
 async function getFileSize(fileName) {
     console.log("[OPFS] getFileSize called:", fileName);
-    await init();
     try {
-        const fileHandle = await opfsRoot.getFileHandle(fileName);
+        const { dir, name } = await getParentDirAndName(fileName, false);
+        const fileHandle = await dir.getFileHandle(name);
         const file = await fileHandle.getFile();
         console.log("[OPFS] getFileSize done:", file.size);
         return file.size;
@@ -66,16 +88,16 @@ async function getFileSize(fileName) {
 
 async function deleteFile(fileName) {
     console.log("[OPFS] deleteFile called:", fileName);
-    await init();
-    await opfsRoot.removeEntry(fileName);
+    const { dir, name } = await getParentDirAndName(fileName, false);
+    await dir.removeEntry(name);
     console.log("[OPFS] deleteFile done:", fileName);
 }
 
 async function fileExists(fileName) {
     console.log("[OPFS] fileExists called:", fileName);
-    await init();
     try {
-        await opfsRoot.getFileHandle(fileName);
+        const { dir, name } = await getParentDirAndName(fileName, false);
+        await dir.getFileHandle(name);
         console.log("[OPFS] fileExists true:", fileName);
         return true;
     } catch (e) {
@@ -87,14 +109,21 @@ async function fileExists(fileName) {
 async function createDir(dirName) {
     console.log("[OPFS] createDir called:", dirName);
     await init();
-    await opfsRoot.getDirectoryHandle(dirName, { create: true });
+    const segments = normalizeSegments(dirName);
+    if (segments.length === 0) {
+        throw new TypeError("Directory path must include at least one segment.");
+    }
+    let dir = opfsRoot;
+    for (const segment of segments) {
+        dir = await dir.getDirectoryHandle(segment, { create: true });
+    }
     console.log("[OPFS] createDir done:", dirName);
 }
 
 async function deleteDir(dirName) {
     console.log("[OPFS] deleteDir called:", dirName);
-    await init();
-    await opfsRoot.removeEntry(dirName, { recursive: true });
+    const { dir, name } = await getParentDirAndName(dirName, false);
+    await dir.removeEntry(name, { recursive: true });
     console.log("[OPFS] deleteDir done:", dirName);
 }
 
