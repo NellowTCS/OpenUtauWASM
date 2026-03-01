@@ -83,9 +83,9 @@ namespace OpenUtau.App {
             if (OS.IsBrowser()) {
                try {
                     Log.Information("Importing opfsHelper...");
-                    await JSHost.ImportAsync("opfsHelper", "/opfsHelper.js");
+                    await JSHost.ImportAsync("opfsHelper", "../opfsHelper.js");
                     Log.Information("Importing bookmarkHelper...");
-                    await JSHost.ImportAsync("bookmarkHelper", "/bookmarkHelper.js");
+                    await JSHost.ImportAsync("bookmarkHelper", "../bookmarkHelper.js");
                     
                     Storage.SetBackend(new OpfsStorageBackend());
                     Log.Information("OPFS storage backend registered");

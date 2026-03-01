@@ -12,8 +12,7 @@ namespace OpenUtau.Browser.Audio
     public partial class BrowserAudioOutput : IAudioOutput, IDisposable
     {
         const int Channels = 2;
-        const int SampleRate = 44100;
-        const int BufferFrames = 128;
+        const int BufferFrames = 512;
         
         public PlaybackState PlaybackState { get; private set; }
         public int DeviceNumber { get; private set; }
@@ -23,27 +22,19 @@ namespace OpenUtau.Browser.Audio
         private bool eof;
         private bool isInitialized;
         private bool isWorkletReady;
+        private int feedInProgress;
+        private int targetSampleRate = 44100;
+        private readonly float[] callbackBuffer = new float[BufferFrames * Channels];
+        private readonly double[] callbackBufferJs = new double[BufferFrames * Channels];
 
         private readonly List<AudioOutputDevice> devices = new();
         
-        // Ring buffer for thread-safe sample transfer
-        private float[]? ringBuffer;
-        private int ringWritePos;
-        private int ringReadPos;
-        private int ringAvailable;
-        private readonly object ringLock = new();
-        
-        private const int RingBufferSize = 4096 * Channels; // ~93ms of audio
-
         // Singleton instance for static callback
         private static BrowserAudioOutput? Instance;
 
         public BrowserAudioOutput()
         {
             Instance = this;
-            
-            // Allocate ring buffer
-            ringBuffer = new float[RingBufferSize];
             
             // Initialize async
             _ = InitializeAsync();
@@ -57,6 +48,13 @@ namespace OpenUtau.Browser.Audio
                 Log.Information("BrowserAudioOutput: Calling InitAudio...");
                 await AudioBridge.InitAudio();
                 Log.Information("BrowserAudioOutput: InitAudio completed");
+
+                var browserSampleRate = AudioBridge.GetSampleRate();
+                if (browserSampleRate > 0)
+                {
+                    targetSampleRate = browserSampleRate;
+                }
+                Log.Information("BrowserAudioOutput: Browser sample rate = {SampleRate}", targetSampleRate);
                 
                 // Load worldline WASM (includes miniaudio)
                 Log.Information("BrowserAudioOutput: Calling InitWorldline...");
@@ -98,14 +96,11 @@ namespace OpenUtau.Browser.Audio
             PlaybackState = PlaybackState.Stopped;
             eof = false;
             currentTimeMs = 0;
-            ringWritePos = 0;
-            ringReadPos = 0;
-            ringAvailable = 0;
 
             // Resample if needed
-            if (SampleRate != sampleProvider.WaveFormat.SampleRate)
+            if (targetSampleRate != sampleProvider.WaveFormat.SampleRate)
             {
-                sampleProvider = new WdlResamplingSampleProvider(sampleProvider, SampleRate);
+                sampleProvider = new WdlResamplingSampleProvider(sampleProvider, targetSampleRate);
             }
 
             this.sampleProvider = sampleProvider.ToStereo();
@@ -128,7 +123,7 @@ namespace OpenUtau.Browser.Audio
             AudioBridge.StartPlayback();
             
             // Start the worklet feed loop
-            AudioBridge.StartContinuousFeed(20); // Feed every 20ms
+            AudioBridge.StartContinuousFeed(10); // Feed every 10ms
             
             PlaybackState = PlaybackState.Playing;
             eof = false;
@@ -151,34 +146,33 @@ namespace OpenUtau.Browser.Audio
             AudioBridge.StopContinuousFeed();
             AudioBridge.StopPlayback();
             PlaybackState = PlaybackState.Stopped;
-            
-            // Clear ring buffer
-            lock (ringLock)
-            {
-                ringAvailable = 0;
-                ringWritePos = 0;
-                ringReadPos = 0;
-            }
-            
+
             Log.Information("BrowserAudioOutput: Stop");
         }
 
         [JSExport]
-        public static void OnAudioDataRequested()
+        public static System.Threading.Tasks.Task<bool> OnAudioDataRequested()
         {
             Instance?.FillBuffer();
+            return System.Threading.Tasks.Task.FromResult(true);
         }
 
         private void FillBuffer()
         {
+            if (System.Threading.Interlocked.Exchange(ref feedInProgress, 1) == 1)
+            {
+                return;
+            }
+
+            try
+            {
             if (sampleProvider == null || PlaybackState != PlaybackState.Playing)
             {
                 return;
             }
 
             // Read samples from provider
-            float[] buffer = new float[BufferFrames * Channels];
-            int samplesRead = sampleProvider.Read(buffer, 0, buffer.Length);
+            int samplesRead = sampleProvider.Read(callbackBuffer, 0, callbackBuffer.Length);
             
             if (samplesRead == 0)
             {
@@ -187,26 +181,21 @@ namespace OpenUtau.Browser.Audio
             }
 
             // Update time position
-            currentTimeMs += samplesRead / (double)Channels * 1000.0 / SampleRate;
+            currentTimeMs += samplesRead / (double)Channels * 1000.0 / targetSampleRate;
             
-            // Copy samples to ring buffer
-            if (ringBuffer != null)
+            // Send samples to JS worklet
+            if (isWorkletReady && samplesRead > 0)
             {
-                lock (ringLock)
+                for (int i = 0; i < samplesRead; i++)
                 {
-                    for (int i = 0; i < samplesRead; i++)
-                    {
-                        ringBuffer[ringWritePos] = buffer[i];
-                        ringWritePos = (ringWritePos + 1) % ringBuffer.Length;
-                    }
-                    ringAvailable += samplesRead;
+                    callbackBufferJs[i] = callbackBuffer[i];
                 }
+                AudioBridge.FeedAudioData(callbackBufferJs, samplesRead);
             }
-            
-            // For now, send silence - audio transfer needs different approacback
-            if (isWorkletReady)
+            }
+            finally
             {
-                // AudioBridge.FeedAudioData(); // TODO: fix array marshalling
+                System.Threading.Interlocked.Exchange(ref feedInProgress, 0);
             }
         }
 
@@ -217,10 +206,18 @@ namespace OpenUtau.Browser.Audio
             Log.Information("BrowserAudioOutput: Playing test tone!");
             
             // Create a simple test tone generator
-            sampleProvider = new TestToneProvider(440, SampleRate);
-            sampleProvider = sampleProvider.ToStereo();
+            sampleProvider = new TestToneProvider(440, targetSampleRate);
             
             Play();
+
+            _ = System.Threading.Tasks.Task.Run(async () => {
+                await System.Threading.Tasks.Task.Delay(5000);
+                if (PlaybackState == PlaybackState.Playing)
+                {
+                    Stop();
+                    Log.Information("BrowserAudioOutput: Test tone stopped after 5 seconds");
+                }
+            });
         }
 
         /// Simple sine wave generator for testing
@@ -236,22 +233,25 @@ namespace OpenUtau.Browser.Audio
             {
                 this.frequency = frequency;
                 this.sampleRate = sampleRate;
-                this.WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, 1);
+                this.WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, 2);
             }
             
             public int Read(float[] buffer, int offset, int count)
             {
                 double phaseIncrement = 2 * Math.PI * frequency / sampleRate;
-                
-                for (int i = 0; i < count; i++)
+
+                int samplePairs = count / 2;
+                for (int i = 0; i < samplePairs; i++)
                 {
                     double sample = Math.Sin(phase) * 0.3; // 30% volume
-                    buffer[offset + i] = (float)sample;
+                    int baseIndex = offset + i * 2;
+                    buffer[baseIndex] = (float)sample;
+                    buffer[baseIndex + 1] = (float)sample;
                     phase += phaseIncrement;
                     if (phase > 2 * Math.PI) phase -= 2 * Math.PI;
                 }
-                
-                return count;
+
+                return samplePairs * 2;
             }
         }
 
@@ -261,7 +261,7 @@ namespace OpenUtau.Browser.Audio
             {
                 Stop();
             }
-            return (long)(Math.Max(0, currentTimeMs) / 1000 * SampleRate * 2 * Channels);
+            return (long)(Math.Max(0, currentTimeMs) / 1000 * targetSampleRate * 2 * Channels);
         }
 
         public void SelectDevice(Guid guid, int deviceNumber)
@@ -296,7 +296,6 @@ namespace OpenUtau.Browser.Audio
                 if (disposing)
                 {
                     Stop();
-                    ringBuffer = null;
                 }
                 disposedValue = true;
             }
@@ -346,9 +345,12 @@ namespace OpenUtau.Browser.Audio
         public static partial void StopContinuousFeed();
 
         [JSImport("feedAudioData", "AudioBridge")]
-        public static partial void FeedAudioData();
+        public static partial void FeedAudioData(double[] samples, int sampleCount);
 
         [JSImport("resumeAudio", "AudioBridge")]
         public static partial System.Threading.Tasks.Task<bool> ResumeAudio();
+
+        [JSImport("getSampleRate", "AudioBridge")]
+        public static partial int GetSampleRate();
     }
 }
