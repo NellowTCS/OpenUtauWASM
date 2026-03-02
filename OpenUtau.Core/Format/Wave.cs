@@ -12,12 +12,13 @@ using NWaves.Signals;
 namespace OpenUtau.Core.Format {
     public static class Wave {
         public static Func<string, WaveStream> OverrideMp3Reader;
+        private static IFileSystem FS => FileSystemManager.Inst.FS;
 
         public static WaveStream OpenFile(string filepath) {
             var ext = Path.GetExtension(filepath);
             byte[] buffer = new byte[128];
             string tag = "";
-            using (var stream = File.Open(filepath, FileMode.Open, FileAccess.Read, FileShare.Read)) {
+            using (var stream = FS.OpenFile(filepath, FileMode.Open, FileAccess.Read)) {
                 if (stream.CanSeek) {
                     stream.Read(buffer, 0, 128);
                     tag = System.Text.Encoding.UTF8.GetString(buffer.AsSpan(0, 4));

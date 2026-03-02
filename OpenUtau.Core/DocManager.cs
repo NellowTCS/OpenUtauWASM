@@ -55,6 +55,10 @@ namespace OpenUtau.Core {
         }
 
         public void SearchAllLegacyPlugins() {
+            if (OS.IsBrowser()) {
+                Plugins = new Plugin[0];
+                return;
+            }
             try {
                 var stopWatch = Stopwatch.StartNew();
                 Plugins = PluginLoader.LoadAll(PathManager.Inst.PluginsPath);
@@ -70,33 +74,43 @@ namespace OpenUtau.Core {
             const string kBuiltin = "OpenUtau.Plugin.Builtin.dll";
             var stopWatch = Stopwatch.StartNew();
             var files = new List<string>();
-            try {
-                files.Add(Path.Combine(Path.GetDirectoryName(AppContext.BaseDirectory), kBuiltin));
-                Directory.CreateDirectory(PathManager.Inst.PluginsPath);
-                string oldBuiltin = Path.Combine(PathManager.Inst.PluginsPath, kBuiltin);
-                if (File.Exists(oldBuiltin)) {
-                    File.Delete(oldBuiltin);
-                }
-                files.AddRange(Directory.EnumerateFiles(PathManager.Inst.PluginsPath, "*.dll", SearchOption.AllDirectories));
-            } catch (Exception e) {
-                Log.Error(e, "Failed to search plugins.");
-            }
-            foreach (var file in files) {
-                Assembly assembly;
+            if (OS.IsBrowser()) {
+                // In WASM, Assembly.LoadFile from filesystem paths is not supported yet 
+                // TODO: look into compiling plugins to wasm
+                // Only register built-in phonemizers from the current assembly.
+                Log.Information("Browser mode: skipping DLL plugin search, registering built-in phonemizers only.");
+            } else {
                 try {
-                    if (!LibraryLoader.IsManagedAssembly(file)) {
-                        Log.Information($"Skipping {file}");
+                    var baseDir = Path.GetDirectoryName(AppContext.BaseDirectory);
+                    if (baseDir != null) {
+                        files.Add(Path.Combine(baseDir, kBuiltin));
+                    }
+                    Directory.CreateDirectory(PathManager.Inst.PluginsPath);
+                    string oldBuiltin = Path.Combine(PathManager.Inst.PluginsPath, kBuiltin);
+                    if (File.Exists(oldBuiltin)) {
+                        File.Delete(oldBuiltin);
+                    }
+                    files.AddRange(Directory.EnumerateFiles(PathManager.Inst.PluginsPath, "*.dll", SearchOption.AllDirectories));
+                } catch (Exception e) {
+                    Log.Error(e, "Failed to search plugins.");
+                }
+                foreach (var file in files) {
+                    Assembly assembly;
+                    try {
+                        if (!LibraryLoader.IsManagedAssembly(file)) {
+                            Log.Information($"Skipping {file}");
+                            continue;
+                        }
+                        assembly = Assembly.LoadFile(file);
+                        foreach (var type in assembly.GetExportedTypes()) {
+                            if (!type.IsAbstract && type.IsSubclassOf(typeof(Phonemizer))) {
+                                PhonemizerFactory.Get(type);
+                            }
+                        }
+                    } catch (Exception e) {
+                        Log.Warning(e, $"Failed to load {file}.");
                         continue;
                     }
-                    assembly = Assembly.LoadFile(file);
-                    foreach (var type in assembly.GetExportedTypes()) {
-                        if (!type.IsAbstract && type.IsSubclassOf(typeof(Phonemizer))) {
-                            PhonemizerFactory.Get(type);
-                        }
-                    }
-                } catch (Exception e) {
-                    Log.Warning(e, $"Failed to load {file}.");
-                    continue;
                 }
             }
             foreach (var type in GetType().Assembly.GetExportedTypes()) {

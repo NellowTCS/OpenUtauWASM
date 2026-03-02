@@ -29,9 +29,19 @@ const CALLBACK_CHUNK_SAMPLES = 512 * CHANNELS;
 // Initialize Web Audio API
 export async function initAudio() {
     debugLog('[AudioBridge] initAudio called');
-    audioContext = new (window.AudioContext || window.webkitAudioContext)({
-        latencyHint: 'interactive'
-    });
+    
+    // Check for existing context on window (from main.js button)
+    if (!audioContext && window.audioContext) {
+        audioContext = window.audioContext;
+    }
+    
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)({
+            latencyHint: 'interactive'
+        });
+        // Store on window for sharing
+        window.audioContext = audioContext;
+    }
     
     if (audioContext.state === 'suspended') {
         await audioContext.resume();
@@ -487,6 +497,16 @@ export function stopContinuousFeed() {
 // Resume audio context
 export async function resumeAudio() {
     debugLog('[AudioBridge] resumeAudio called, state:', audioContext?.state);
+    
+    // If no audioContext yet, initialize it
+    if (!audioContext && window.audioContext) {
+        audioContext = window.audioContext;
+    }
+    
+    if (!audioContext) {
+        await initAudio();
+    }
+    
     if (audioContext && audioContext.state === 'suspended') {
         await audioContext.resume();
     }

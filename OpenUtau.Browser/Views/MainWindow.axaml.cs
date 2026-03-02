@@ -13,6 +13,7 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
+using OpenUtau.App.Browser;
 using OpenUtau.App.Controls;
 using OpenUtau.App.ViewModels;
 using OpenUtau.Classic;
@@ -78,14 +79,31 @@ namespace OpenUtau.App.Views {
         }
 
         public async Task OpenSingersWindowAsync() {
+            // TODO: Create a browser-compatible singer management dialog.
+            // The desktop SingersDialog extends Window and cannot be used in browser.
+            DocManager.Inst.ExecuteCmd(new ProgressBarNotification(0,
+                "Singer manager is not yet available in the browser. Use Tools > Install Singer to load a voicebank directory."));
             await Task.CompletedTask;
         }
 
         public void SetPianoRollAttachment() {
         }
 
-        public Task Save() {
-            return Task.CompletedTask;
+        public async Task Save() {
+            if (!viewModel.ProjectSaved) {
+                await SaveAs();
+            } else {
+                // In browser, Ustx.Save() does OPFS I/O which uses .Result on JS interop.
+                // Must run on a worker thread to avoid deadlocking the UI/JS thread.
+                // We call Ustx.Save() directly instead of going through SaveProjectNotification,
+                // which would post back to the UI thread and deadlock.
+                var project = DocManager.Inst.Project;
+                var filePath = project.FilePath;
+                await Task.Run(() => Ustx.Save(filePath, project));
+                string message = ThemeManager.GetString("progress.saved");
+                message = string.Format(message, DateTime.Now);
+                DocManager.Inst.ExecuteCmd(new ProgressBarNotification(0, message));
+            }
         }
 
         public async Task ShowDialog(Control dialog) {
@@ -153,22 +171,82 @@ namespace OpenUtau.App.Views {
             if (!DocManager.Inst.ChangesSaved && !await AskIfSaveAndContinue()) {
                 return;
             }
-            viewModel.Page = 1;
+            try {
+                var picked = await FsAccessService.OpenFilePickerAsync(
+                    "Project Files",
+                    ".ustx,.ust,.vsqx,.mid,.midi,.ufdata,.musicxml",
+                    multiple: false);
+                if (picked.Length == 0) return;
+
+                var files = picked.Select(p => p.TempPath).ToArray();
+                await Task.Run(() => viewModel.OpenProject(files));
+                viewModel.Page = 1;
+
+                // Clean up temp files after a delay to allow reading to complete
+                _ = Task.Run(async () => {
+                    await Task.Delay(2000);
+                    try { await FsAccessService.CleanupPickerTempAsync(); } catch { }
+                });
+            } catch (Exception e) {
+                Log.Error(e, "Failed to open files");
+                DocManager.Inst.ExecuteCmd(new ErrorMessageNotification(e));
+            }
         }
 
         void OnMainMenuOpened(object sender, RoutedEventArgs args) {
             viewModel.RefreshOpenRecent();
-            viewModel.RefreshTemplates();
+            Task.Run(() => {
+                var fs = FileSystemManager.Inst.FS;
+                var templatesPath = PathManager.Inst.TemplatesPath;
+                if (!fs.DirectoryExists(templatesPath)) {
+                    fs.CreateDirectory(templatesPath);
+                }
+                return fs.GetFiles(templatesPath, "*.ustx");
+            }).ContinueWith(t => {
+                if (t.IsCompletedSuccessfully) {
+                    viewModel.RefreshTemplatesFromFiles(t.Result);
+                }
+            }, TaskScheduler.FromCurrentSynchronizationContext());
             viewModel.RefreshCacheSize();
         }
 
         void OnMainMenuClosed(object sender, RoutedEventArgs args) { Focus(); }
         void OnMainMenuPointerLeave(object sender, PointerEventArgs args) { Focus(); }
 
-        void OnMenuOpenProjectLocation(object sender, RoutedEventArgs args) { }
+        void OnMenuOpenProjectLocation(object sender, RoutedEventArgs args) {
+            // Cannot open folder in browser - no-op
+            DocManager.Inst.ExecuteCmd(new ProgressBarNotification(0, "Open project location is not available in the browser."));
+        }
         async void OnMenuSave(object sender, RoutedEventArgs args) => await Save();
         async void OnMenuSaveAs(object sender, RoutedEventArgs args) => await SaveAs();
-        async Task SaveAs() { await Task.CompletedTask; }
+        async Task SaveAs() {
+            try {
+                // Save to a temp OPFS path first
+                var project = DocManager.Inst.Project;
+                var suggestedName = string.IsNullOrEmpty(project.FilePath)
+                    ? "project.ustx"
+                    : Path.GetFileName(project.FilePath);
+                if (!suggestedName.EndsWith(".ustx")) suggestedName = "project.ustx";
+
+                var tempPath = Path.Combine(PathManager.Inst.CachePath, "export_" + suggestedName);
+                // Ustx.Save does filesystem I/O (OPFS) which uses .Result on JS interop.
+                // Must run on a worker thread to avoid deadlocking the UI/JS thread.
+                await Task.Run(() => Ustx.Save(tempPath, project));
+
+                // Now push the saved file to the user via save picker
+                var result = await FsAccessService.SaveFilePickerFromOpfsAsync(
+                    tempPath, suggestedName, "USTX Project", ".ustx");
+
+                if (!string.IsNullOrEmpty(result)) {
+                    string message = ThemeManager.GetString("progress.saved");
+                    message = string.Format(message, DateTime.Now);
+                    DocManager.Inst.ExecuteCmd(new ProgressBarNotification(0, message));
+                }
+            } catch (Exception e) {
+                Log.Error(e, "Failed to save project");
+                DocManager.Inst.ExecuteCmd(new ErrorMessageNotification(e));
+            }
+        }
 
         void OnMenuSaveTemplate(object sender, RoutedEventArgs args) {
             var project = DocManager.Inst.Project;
@@ -179,22 +257,258 @@ namespace OpenUtau.App.Views {
                 file = Path.GetFileNameWithoutExtension(file);
                 file = $"{file}.ustx";
                 file = Path.Combine(PathManager.Inst.TemplatesPath, file);
-                Ustx.Save(file, project.CloneAsTemplate());
+                // Ustx.Save does filesystem I/O (OPFS) which uses .Result on JS interop.
+                // Must run on a worker thread.
+                _ = Task.Run(() => Ustx.Save(file, project.CloneAsTemplate()));
             };
             _ = ShowDialog(dialog);
         }
 
-        async void OnMenuImportTracks(object sender, RoutedEventArgs args) { await Task.CompletedTask; }
-        async void OnMenuImportAudio(object sender, RoutedEventArgs args) { await Task.CompletedTask; }
-        async void OnMenuExportMixdown(object sender, RoutedEventArgs args) { await Task.CompletedTask; }
-        async void OnMenuExportWav(object sender, RoutedEventArgs args) { await Task.CompletedTask; }
-        async void OnMenuExportWavTo(object sender, RoutedEventArgs args) { await Task.CompletedTask; }
-        async void OnMenuExportDsTo(object sender, RoutedEventArgs e) { await Task.CompletedTask; }
-        async void OnMenuExportDsV2To(object sender, RoutedEventArgs e) { await Task.CompletedTask; }
-        async void OnMenuExportDsV2WithoutPitchTo(object sender, RoutedEventArgs e) { await Task.CompletedTask; }
-        async void OnMenuExportUst(object sender, RoutedEventArgs e) { await Task.CompletedTask; }
-        async void OnMenuExportUstTo(object sender, RoutedEventArgs e) { await Task.CompletedTask; }
-        async void OnMenuExportMidi(object sender, RoutedEventArgs e) { await Task.CompletedTask; }
+        async void OnMenuImportTracks(object sender, RoutedEventArgs args) {
+            try {
+                var picked = await FsAccessService.OpenFilePickerAsync(
+                    "Project Files",
+                    ".ustx,.ust,.vsqx,.mid,.midi,.ufdata,.musicxml",
+                    multiple: true);
+                if (picked.Length == 0) return;
+
+                var files = picked.Select(p => p.TempPath).ToArray();
+                // ReadProjects does filesystem I/O which uses .Result on JS interop.
+                // Must run on a worker thread to avoid deadlocking the UI/JS thread.
+                var loadedProjects = await Task.Run(() => Formats.ReadProjects(files));
+                if (loadedProjects == null || loadedProjects.Length == 0) return;
+
+                // In browser we skip the tempo import dialog and default to importing
+                // tempo only if the current project has no parts
+                bool importTempo = DocManager.Inst.Project.parts.Count == 0;
+                viewModel.ImportTracks(loadedProjects, importTempo);
+
+                _ = Task.Run(async () => {
+                    await Task.Delay(2000);
+                    try { await FsAccessService.CleanupPickerTempAsync(); } catch { }
+                });
+            } catch (Exception e) {
+                Log.Error(e, "Failed to import tracks");
+                DocManager.Inst.ExecuteCmd(new ErrorMessageNotification(e));
+            }
+        }
+        async void OnMenuImportAudio(object sender, RoutedEventArgs args) {
+            try {
+                var picked = await FsAccessService.OpenFilePickerAsync(
+                    "Audio Files",
+                    ".wav,.mp3,.ogg,.opus,.flac",
+                    multiple: true);
+                if (picked.Length == 0) return;
+
+                foreach (var file in picked) {
+                    try {
+                        // ImportAudio loads audio data via IFileSystem which uses .Result
+                        // on JS interop. Must run on a worker thread.
+                        await Task.Run(() => viewModel.ImportAudio(file.TempPath));
+                    } catch (Exception e) {
+                        Log.Error(e, "Failed to import audio file {Name}", file.Name);
+                        DocManager.Inst.ExecuteCmd(new ErrorMessageNotification(e));
+                    }
+                }
+
+                _ = Task.Run(async () => {
+                    await Task.Delay(2000);
+                    try { await FsAccessService.CleanupPickerTempAsync(); } catch { }
+                });
+            } catch (Exception e) {
+                Log.Error(e, "Failed to import audio");
+                DocManager.Inst.ExecuteCmd(new ErrorMessageNotification(e));
+            }
+        }
+        async void OnMenuExportMixdown(object sender, RoutedEventArgs args) {
+            try {
+                var project = DocManager.Inst.Project;
+                var name = string.IsNullOrEmpty(project.FilePath)
+                    ? "mixdown.wav"
+                    : Path.GetFileNameWithoutExtension(project.FilePath) + "_mixdown.wav";
+                // Use /tmp/ (emscripten in-memory FS) because NAudio's WaveFileWriter
+                // uses System.IO.FileStream directly — it can't write to OPFS.
+                var tempDir = "/tmp/wav_export";
+                if (!Directory.Exists(tempDir)) Directory.CreateDirectory(tempDir);
+                var tempPath = Path.Combine(tempDir, name);
+                await PlaybackManager.Inst.RenderMixdown(project, tempPath);
+
+                // Read back from emscripten FS and deliver via save picker
+                var bytes = await Task.Run(() => File.ReadAllBytes(tempPath));
+                var result = await FsAccessService.SaveFilePickerBytesAsync(
+                    name, "WAV Audio", ".wav", bytes);
+                if (!string.IsNullOrEmpty(result)) {
+                    DocManager.Inst.ExecuteCmd(new ProgressBarNotification(0, $"Exported {result}"));
+                }
+                // Clean up temp file
+                try { File.Delete(tempPath); } catch { }
+            } catch (Exception e) {
+                Log.Error(e, "Failed to export mixdown");
+                DocManager.Inst.ExecuteCmd(new ErrorMessageNotification(e));
+            }
+        }
+        async void OnMenuExportWav(object sender, RoutedEventArgs args) {
+            try {
+                var project = DocManager.Inst.Project;
+                var name = string.IsNullOrEmpty(project.FilePath)
+                    ? "export.wav"
+                    : Path.GetFileNameWithoutExtension(project.FilePath) + ".wav";
+                // Use /tmp/ (emscripten FS) because NAudio's WaveFileWriter uses System.IO directly
+                var tempDir = "/tmp/wav_export/Export";
+                if (!Directory.Exists(tempDir)) Directory.CreateDirectory(tempDir);
+                var tempPath = Path.Combine(tempDir, name);
+
+                await PlaybackManager.Inst.RenderToFiles(project, tempPath);
+
+                // Read WAV files from emscripten FS and trigger downloads
+                if (Directory.Exists(tempDir)) {
+                    var wavFiles = Directory.GetFiles(tempDir, "*.wav");
+                    foreach (var wavFile in wavFiles) {
+                        var wavName = Path.GetFileName(wavFile);
+                        var bytes = await Task.Run(() => File.ReadAllBytes(wavFile));
+                        await FsAccessService.DownloadBytesAsync(wavName, bytes);
+                    }
+                    DocManager.Inst.ExecuteCmd(new ProgressBarNotification(0, $"Exported {wavFiles.Length} file(s)"));
+                    // Clean up
+                    try { foreach (var f in Directory.GetFiles(tempDir)) File.Delete(f); } catch { }
+                }
+            } catch (Exception e) {
+                Log.Error(e, "Failed to export WAV");
+                DocManager.Inst.ExecuteCmd(new ErrorMessageNotification(e));
+            }
+        }
+        async void OnMenuExportWavTo(object sender, RoutedEventArgs args) {
+            try {
+                var project = DocManager.Inst.Project;
+                var name = string.IsNullOrEmpty(project.FilePath)
+                    ? "export.wav"
+                    : Path.GetFileNameWithoutExtension(project.FilePath) + ".wav";
+                // Use /tmp/ (emscripten FS) because NAudio's WaveFileWriter uses System.IO directly
+                var tempDir = "/tmp/wav_export/ExportTo";
+                if (!Directory.Exists(tempDir)) Directory.CreateDirectory(tempDir);
+                var tempPath = Path.Combine(tempDir, name);
+
+                await PlaybackManager.Inst.RenderToFiles(project, tempPath);
+
+                if (Directory.Exists(tempDir)) {
+                    var wavFiles = Directory.GetFiles(tempDir, "*.wav");
+                    foreach (var wavFile in wavFiles) {
+                        var wavName = Path.GetFileName(wavFile);
+                        var bytes = await Task.Run(() => File.ReadAllBytes(wavFile));
+                        var result = await FsAccessService.SaveFilePickerBytesAsync(
+                            wavName, "WAV Audio", ".wav", bytes);
+                        if (string.IsNullOrEmpty(result)) break; // User cancelled
+                    }
+                    DocManager.Inst.ExecuteCmd(new ProgressBarNotification(0, "Export complete"));
+                    // Clean up
+                    try { foreach (var f in Directory.GetFiles(tempDir)) File.Delete(f); } catch { }
+                }
+            } catch (Exception e) {
+                Log.Error(e, "Failed to export WAV");
+                DocManager.Inst.ExecuteCmd(new ErrorMessageNotification(e));
+            }
+        }
+        async void OnMenuExportDsTo(object sender, RoutedEventArgs e) {
+            await ExportDiffSingerScript(v2: false, exportPitch: true);
+        }
+        async void OnMenuExportDsV2To(object sender, RoutedEventArgs e) {
+            await ExportDiffSingerScript(v2: true, exportPitch: true);
+        }
+        async void OnMenuExportDsV2WithoutPitchTo(object sender, RoutedEventArgs e) {
+            await ExportDiffSingerScript(v2: true, exportPitch: false);
+        }
+        async Task ExportDiffSingerScript(bool v2, bool exportPitch) {
+            try {
+                var project = DocManager.Inst.Project;
+                // Use /tmp/ (emscripten FS) because DiffSingerScript.SavePart uses
+                // raw File.WriteAllText which writes to emscripten in-memory FS.
+                var tempDir = "/tmp/ds_export";
+                if (!Directory.Exists(tempDir)) Directory.CreateDirectory(tempDir);
+                for (var i = 0; i < project.parts.Count; i++) {
+                    var part = project.parts[i];
+                    if (part is UVoicePart voicePart) {
+                        var partName = voicePart.DisplayName;
+                        var tempPath = Path.Combine(tempDir, $"export_{partName}_{i}.ds");
+                        await Task.Run(() => DiffSingerScript.SavePart(project, voicePart, tempPath, v2, exportPitch));
+
+                        var suggestedName = $"{partName}.ds";
+                        var bytes = await Task.Run(() => File.ReadAllBytes(tempPath));
+                        var result = await FsAccessService.SaveFilePickerBytesAsync(
+                            suggestedName, "DiffSinger Script", ".ds", bytes);
+                        if (string.IsNullOrEmpty(result)) break; // User cancelled
+                        DocManager.Inst.ExecuteCmd(new ProgressBarNotification(0, $"Exported {result}"));
+                        try { File.Delete(tempPath); } catch { }
+                    }
+                }
+            } catch (Exception ex) {
+                Log.Error(ex, "Failed to export DiffSinger script");
+                DocManager.Inst.ExecuteCmd(new ErrorMessageNotification(ex));
+            }
+        }
+        async void OnMenuExportUst(object sender, RoutedEventArgs e) {
+            try {
+                var project = DocManager.Inst.Project;
+                for (var i = 0; i < project.parts.Count; i++) {
+                    var part = project.parts[i];
+                    if (part is UVoicePart voicePart) {
+                        var partName = voicePart.DisplayName;
+                        var tempPath = Path.Combine(PathManager.Inst.CachePath, $"export_{partName}_{i}.ust");
+                        // Ust.SavePart does filesystem I/O via IFileSystem. Must run on worker thread.
+                        await Task.Run(() => Ust.SavePart(project, voicePart, tempPath));
+
+                        var suggestedName = $"{partName}.ust";
+                        await FsAccessService.DownloadFileAsync(tempPath, suggestedName);
+                        DocManager.Inst.ExecuteCmd(new ProgressBarNotification(0, $"Exported {suggestedName}"));
+                    }
+                }
+            } catch (Exception ex) {
+                Log.Error(ex, "Failed to export UST");
+                DocManager.Inst.ExecuteCmd(new ErrorMessageNotification(ex));
+            }
+        }
+        async void OnMenuExportUstTo(object sender, RoutedEventArgs e) {
+            try {
+                var project = DocManager.Inst.Project;
+                for (var i = 0; i < project.parts.Count; i++) {
+                    var part = project.parts[i];
+                    if (part is UVoicePart voicePart) {
+                        var partName = voicePart.DisplayName;
+                        var tempPath = Path.Combine(PathManager.Inst.CachePath, $"export_{partName}_{i}.ust");
+                        // Ust.SavePart does filesystem I/O via IFileSystem. Must run on worker thread.
+                        await Task.Run(() => Ust.SavePart(project, voicePart, tempPath));
+
+                        var suggestedName = $"{partName}.ust";
+                        var result = await FsAccessService.SaveFilePickerFromOpfsAsync(
+                            tempPath, suggestedName, "UST File", ".ust");
+                        if (string.IsNullOrEmpty(result)) break;
+                        DocManager.Inst.ExecuteCmd(new ProgressBarNotification(0, $"Exported {result}"));
+                    }
+                }
+            } catch (Exception ex) {
+                Log.Error(ex, "Failed to export UST");
+                DocManager.Inst.ExecuteCmd(new ErrorMessageNotification(ex));
+            }
+        }
+        async void OnMenuExportMidi(object sender, RoutedEventArgs e) {
+            try {
+                var project = DocManager.Inst.Project;
+                var name = string.IsNullOrEmpty(project.FilePath)
+                    ? "export.mid"
+                    : Path.GetFileNameWithoutExtension(project.FilePath) + ".mid";
+                var tempPath = Path.Combine(PathManager.Inst.CachePath, name);
+                // MidiWriter.Save does filesystem I/O via IFileSystem. Must run on worker thread.
+                await Task.Run(() => MidiWriter.Save(tempPath, project));
+
+                var result = await FsAccessService.SaveFilePickerFromOpfsAsync(
+                    tempPath, name, "MIDI File", ".mid,.midi");
+                if (!string.IsNullOrEmpty(result)) {
+                    DocManager.Inst.ExecuteCmd(new ProgressBarNotification(0, $"Exported {result}"));
+                }
+            } catch (Exception ex) {
+                Log.Error(ex, "Failed to export MIDI");
+                DocManager.Inst.ExecuteCmd(new ErrorMessageNotification(ex));
+            }
+        }
 
         void OnMenuUndo(object sender, RoutedEventArgs args) => viewModel.Undo();
         void OnMenuRedo(object sender, RoutedEventArgs args) => viewModel.Redo();
@@ -233,18 +547,48 @@ namespace OpenUtau.App.Views {
         }
 
         async void OnMenuSingers(object sender, RoutedEventArgs args) { await OpenSingersWindowAsync(); }
-        async void OnMenuInstallSinger(object sender, RoutedEventArgs args) { await Task.CompletedTask; }
-
-        void OnMenuPackageManager(object sender, RoutedEventArgs args) {
+        async void OnMenuInstallSinger(object sender, RoutedEventArgs args) {
             try {
-                var dialog = new PackageManagerDialog { DataContext = new PackageManagerViewModel() };
-                _ = ShowDialog(dialog);
+                Log.Information("OnMenuInstallSinger: showing directory picker...");
+                // The mount base path is where the singer directory will appear in the virtual FS.
+                // We mount under the standard singers path so the existing search finds it.
+                var singersPath = PathManager.Inst.SingersPath; // "/openutau/Singers"
+                var mountPath = await FsAccessService.PickSingerDirectoryAsync(singersPath);
+                if (string.IsNullOrEmpty(mountPath)) {
+                    Log.Information("OnMenuInstallSinger: user cancelled directory picker");
+                    return;
+                }
+                Log.Information("OnMenuInstallSinger: mounted singer at {Path}", mountPath);
+
+                // Register the mount with BrowserFileSystem so file operations route correctly
+                if (FileSystemManager.Inst.FS is Browser.BrowserFileSystem browserFs) {
+                    browserFs.AddFsAccessMount(mountPath);
+                }
+
+                // Re-scan all singers on a background thread
+                DocManager.Inst.ExecuteCmd(new ProgressBarNotification(0, "Loading singer..."));
+                await Task.Run(() => {
+                    SingerManager.Inst.SearchAllSingers();
+                });
+                DocManager.Inst.ExecuteCmd(new ProgressBarNotification(0, $"Singer loaded from {mountPath}"));
+                DocManager.Inst.ExecuteCmd(new OtoChangedNotification(external: true));
+                Log.Information("OnMenuInstallSinger: singer scan complete");
             } catch (Exception e) {
+                Log.Error(e, "OnMenuInstallSinger failed");
                 DocManager.Inst.ExecuteCmd(new ErrorMessageNotification(e));
             }
         }
 
-        async void OnMenuInstallWavtoolResampler(object sender, RoutedEventArgs args) { await Task.CompletedTask; }
+        void OnMenuPackageManager(object sender, RoutedEventArgs args) {
+            // TODO: Create a browser-compatible package manager dialog.
+            DocManager.Inst.ExecuteCmd(new ProgressBarNotification(0,
+                "Package manager is not yet available in the browser."));
+        }
+
+        void OnMenuInstallWavtoolResampler(object sender, RoutedEventArgs args) {
+            // Wavtool/resampler installation requires native executables, not available in browser
+            DocManager.Inst.ExecuteCmd(new ProgressBarNotification(0, "Wavtool/resampler installation is not available in the browser."));
+        }
 
         void OnMenuPreferences(object sender, RoutedEventArgs args) {
             PreferencesViewModel dataContext;
@@ -258,7 +602,10 @@ namespace OpenUtau.App.Views {
             _ = ShowDialog(dialog);
         }
 
-        void OnMenuFullScreen(object sender, RoutedEventArgs args) { }
+        void OnMenuFullScreen(object sender, RoutedEventArgs args) {
+            try { FsAccessService.ToggleFullScreen(); }
+            catch (Exception e) { Log.Error(e, "Failed to toggle fullscreen"); }
+        }
         void OnMenuClearCache(object sender, RoutedEventArgs args) {
             Task.Run(() => {
                 DocManager.Inst.ExecuteCmd(new ProgressBarNotification(0, ThemeManager.GetString("progress.clearingcache")));
@@ -266,17 +613,40 @@ namespace OpenUtau.App.Views {
                 DocManager.Inst.ExecuteCmd(new ProgressBarNotification(0, ThemeManager.GetString("progress.cachecleared")));
             });
         }
-        void OnMenuDebugWindow(object sender, RoutedEventArgs args) { }
-        void OnMenuPhoneticAssistant(object sender, RoutedEventArgs args) { }
+        void OnMenuDebugWindow(object sender, RoutedEventArgs args) {
+            // Debug window is not available in browser
+            DocManager.Inst.ExecuteCmd(new ProgressBarNotification(0, "Debug window is not available in the browser."));
+        }
+        void OnMenuPhoneticAssistant(object sender, RoutedEventArgs args) {
+            // Phonetic assistant is not available in browser (requires separate window)
+            DocManager.Inst.ExecuteCmd(new ProgressBarNotification(0, "Phonetic assistant is not available in the browser."));
+        }
         void OnMenuCheckUpdate(object sender, RoutedEventArgs args) {
             var dialog = new UpdaterDialog();
             _ = ShowDialog(dialog);
         }
-        void OnMenuLogsLocation(object sender, RoutedEventArgs args) { }
-        void OnMenuReportIssue(object sender, RoutedEventArgs args) { }
-        void OnMenuWiki(object sender, RoutedEventArgs args) { }
+        void OnMenuLogsLocation(object sender, RoutedEventArgs args) {
+            // Logs are in OPFS - cannot open in file explorer from browser
+            DocManager.Inst.ExecuteCmd(new ProgressBarNotification(0, "Logs location is not accessible in the browser. Check browser console (F12) for logs."));
+        }
+        void OnMenuReportIssue(object sender, RoutedEventArgs args) {
+            try {
+                FsAccessService.OpenUrl("https://github.com/stakira/OpenUtau/issues");
+            } catch (Exception e) {
+                DocManager.Inst.ExecuteCmd(new ErrorMessageNotification(e));
+            }
+        }
+        void OnMenuWiki(object sender, RoutedEventArgs args) {
+            try {
+                FsAccessService.OpenUrl("https://github.com/stakira/OpenUtau/wiki/Getting-Started");
+            } catch (Exception e) {
+                DocManager.Inst.ExecuteCmd(new ErrorMessageNotification(e));
+            }
+        }
 
-        void OnMenuLayoutReset(object sender, RoutedEventArgs args) { }
+        void OnMenuLayoutReset(object sender, RoutedEventArgs args) {
+            // Layout management is not applicable in browser (single-window mode)
+        }
         void OnMenuLayoutVSplit11(object sender, RoutedEventArgs args) { }
         void OnMenuLayoutVSplit12(object sender, RoutedEventArgs args) { }
         void OnMenuLayoutVSplit13(object sender, RoutedEventArgs args) { }
@@ -352,7 +722,60 @@ namespace OpenUtau.App.Views {
             }
         }
 
-        async void OnDrop(object? sender, DragEventArgs args) { await Task.CompletedTask; }
+        async void OnDrop(object? sender, DragEventArgs args) {
+            // In browser, drag-and-drop from OS file manager has limited support.
+            // Avalonia Browser backend may pass through file data in some cases.
+            try {
+                var files = args.Data?.GetFiles()?
+                    .Where(i => i != null)
+                    .Select(i => i.Path.LocalPath)
+                    .ToArray() ?? Array.Empty<string>();
+                if (files.Length == 0) {
+                    return;
+                }
+
+                string[] ProjectExts = { ".ustx", ".ust", ".vsqx", ".ufdata", ".musicxml", ".mid", ".midi" };
+                string[] AudioExts = { ".mp3", ".wav", ".ogg", ".flac" };
+
+                var projectFiles = files.Where(f => ProjectExts.Contains(Path.GetExtension(f).ToLower())).ToArray();
+                var audioFiles = files.Where(f => AudioExts.Contains(Path.GetExtension(f).ToLower())).ToArray();
+
+                if (projectFiles.Length == 0 && audioFiles.Length == 0) {
+                    DocManager.Inst.ExecuteCmd(new ProgressBarNotification(0,
+                        "Unsupported file type. Use File > Open or File > Import instead."));
+                    return;
+                }
+
+                viewModel.Page = 1;
+
+                if (projectFiles.Length > 0) {
+                    try {
+                        // ReadProjects does filesystem I/O which may use .Result on JS interop.
+                        // Must run on a worker thread to avoid deadlocking the UI/JS thread.
+                        var loadedProjects = await Task.Run(() => Formats.ReadProjects(projectFiles));
+                        bool importTempo = DocManager.Inst.Project.parts.Count == 0;
+                        viewModel.ImportTracks(loadedProjects, importTempo);
+                    } catch (Exception e) {
+                        Log.Error(e, "Failed to import dropped project files");
+                        DocManager.Inst.ExecuteCmd(new ErrorMessageNotification(e));
+                    }
+                }
+
+                foreach (var audioFile in audioFiles) {
+                    try {
+                        // ImportAudio loads audio data via IFileSystem. Must run on worker thread.
+                        await Task.Run(() => viewModel.ImportAudio(audioFile));
+                    } catch (Exception e) {
+                        Log.Error(e, "Failed to import dropped audio file");
+                        DocManager.Inst.ExecuteCmd(new ErrorMessageNotification(e));
+                    }
+                }
+            } catch (Exception e) {
+                Log.Error(e, "OnDrop failed");
+                DocManager.Inst.ExecuteCmd(new ProgressBarNotification(0,
+                    "Drag and drop may not be fully supported in the browser. Use File > Open instead."));
+            }
+        }
 
         public void HScrollPointerWheelChanged(object sender, PointerWheelEventArgs args) {
             if (sender is ScrollBar scrollbar) {
@@ -544,30 +967,68 @@ namespace OpenUtau.App.Views {
 
         void GotoFile(UPart part) {
             if (part is UWavePart wavePart) {
-                try { OS.GotoFile(wavePart.FilePath); }
-                catch (Exception e) { DocManager.Inst.ExecuteCmd(new ErrorMessageNotification(e)); }
+                // Cannot open file location in browser - show path info instead
+                DocManager.Inst.ExecuteCmd(new ProgressBarNotification(0,
+                    $"File location: {wavePart.FilePath} (not accessible in browser)"));
             }
         }
 
-        async void ReplaceAudio(UPart part) { await Task.CompletedTask; }
-        void Transcribe(UPart part) { }
+        async void ReplaceAudio(UPart part) {
+            try {
+                var picked = await FsAccessService.OpenFilePickerAsync(
+                    "Audio Files", ".wav,.mp3,.ogg,.opus,.flac", multiple: false);
+                if (picked.Length == 0) return;
 
-        public void OnWelcomeRecovery(object sender, RoutedEventArgs args) {
-            viewModel.OpenProject(new[] { viewModel.RecoveryPath });
+                var file = picked[0];
+                // UWavePart.Load() reads audio data via IFileSystem which may use .Result on JS interop.
+                // Must run on a worker thread.
+                var newPart = await Task.Run(() => {
+                    var wp = new UWavePart() {
+                        FilePath = file.TempPath,
+                        trackNo = part.trackNo,
+                        position = part.position
+                    };
+                    wp.Load(DocManager.Inst.Project);
+                    return wp;
+                });
+                DocManager.Inst.StartUndoGroup("command.import.audio");
+                DocManager.Inst.ExecuteCmd(new ReplacePartCommand(DocManager.Inst.Project, part, newPart));
+                DocManager.Inst.EndUndoGroup();
+
+                _ = Task.Run(async () => {
+                    await Task.Delay(2000);
+                    try { await FsAccessService.CleanupPickerTempAsync(); } catch { }
+                });
+            } catch (Exception e) {
+                Log.Error(e, "Failed to replace audio");
+                DocManager.Inst.ExecuteCmd(new ErrorMessageNotification(e));
+            }
+        }
+        void Transcribe(UPart part) {
+            // SOME transcription requires ONNX Runtime which is not available in browser WASM
+            DocManager.Inst.ExecuteCmd(new ProgressBarNotification(0, "Transcription is not available in the browser."));
+        }
+
+        public async void OnWelcomeRecovery(object sender, RoutedEventArgs args) {
+            // OpenProject does filesystem I/O via IFileSystem which uses .Result on JS interop.
+            // Must run on a worker thread to avoid deadlocking the UI/JS thread.
+            await Task.Run(() => viewModel.OpenProject(new[] { viewModel.RecoveryPath }));
             viewModel.Page = 1;
         }
 
         public async void OnWelcomeRecent(object sender, PointerPressedEventArgs args) {
             if (sender is StackPanel panel && panel.DataContext is RecentFileInfo fileInfo) {
                 if (!DocManager.Inst.ChangesSaved && !await AskIfSaveAndContinue()) return;
-                viewModel.OpenRecent(fileInfo.PathName);
+                // OpenRecent does filesystem I/O. Must run on worker thread.
+                await Task.Run(() => viewModel.OpenRecent(fileInfo.PathName));
             }
         }
 
         public async void OnWelcomeTemplate(object sender, PointerPressedEventArgs args) {
             if (sender is StackPanel panel && panel.DataContext is RecentFileInfo fileInfo) {
                 if (!DocManager.Inst.ChangesSaved && !await AskIfSaveAndContinue()) return;
-                viewModel.OpenTemplate(fileInfo.PathName);
+                // OpenTemplate does filesystem I/O. Must run on worker thread.
+                await Task.Run(() => viewModel.OpenTemplate(fileInfo.PathName));
             }
         }
 
@@ -614,7 +1075,22 @@ namespace OpenUtau.App.Views {
         }
 
         private async Task<bool> AskIfSaveAndContinue() {
-            return true;
+            try {
+                var message = ThemeManager.GetString("dialogs.exitsave.message");
+                var result = FsAccessService.ConfirmYesNoCancel(message);
+                switch (result) {
+                    case "yes":
+                        await Save();
+                        return true;
+                    case "no":
+                        return true; // Continue without saving
+                    default:
+                        return false; // Cancel
+                }
+            } catch (Exception e) {
+                Log.Error(e, "AskIfSaveAndContinue failed");
+                return true; // Fallback: continue
+            }
         }
     }
 }

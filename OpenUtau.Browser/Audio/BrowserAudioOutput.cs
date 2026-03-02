@@ -218,62 +218,6 @@ namespace OpenUtau.Browser.Audio
             }
         }
 
-        /// Play a test tone (440Hz sine wave) to verify audio works
-        /// todo: Remove after testing
-        public void PlayTestTone()
-        {
-            Log.Information("BrowserAudioOutput: Playing test tone!");
-            
-            // Create a simple test tone generator
-            sampleProvider = new TestToneProvider(440, targetSampleRate);
-            
-            Play();
-
-            _ = System.Threading.Tasks.Task.Run(async () => {
-                await System.Threading.Tasks.Task.Delay(5000);
-                if (PlaybackState == PlaybackState.Playing)
-                {
-                    Stop();
-                    Log.Information("BrowserAudioOutput: Test tone stopped after 5 seconds");
-                }
-            });
-        }
-
-        /// Simple sine wave generator for testing
-        /// todo: Remove after testing
-        private class TestToneProvider : ISampleProvider       {
-            private readonly double frequency;
-            private readonly int sampleRate;
-            private double phase;
-            
-            public WaveFormat WaveFormat { get; }
-            
-            public TestToneProvider(double frequency, int sampleRate)
-            {
-                this.frequency = frequency;
-                this.sampleRate = sampleRate;
-                this.WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, 2);
-            }
-            
-            public int Read(float[] buffer, int offset, int count)
-            {
-                double phaseIncrement = 2 * Math.PI * frequency / sampleRate;
-
-                int samplePairs = count / 2;
-                for (int i = 0; i < samplePairs; i++)
-                {
-                    double sample = Math.Sin(phase) * 0.3; // 30% volume
-                    int baseIndex = offset + i * 2;
-                    buffer[baseIndex] = (float)sample;
-                    buffer[baseIndex + 1] = (float)sample;
-                    phase += phaseIncrement;
-                    if (phase > 2 * Math.PI) phase -= 2 * Math.PI;
-                }
-
-                return samplePairs * 2;
-            }
-        }
-
         public long GetPosition()
         {
             if (eof && PlaybackState == PlaybackState.Playing)

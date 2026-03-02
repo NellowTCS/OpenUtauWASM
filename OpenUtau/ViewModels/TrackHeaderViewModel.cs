@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reactive;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -62,11 +63,15 @@ namespace OpenUtau.App.ViewModels {
 
         public TrackHeaderViewModel(UTrack track) {
             this.track = track;
-            SelectSingerCommand = ReactiveCommand.Create<USinger>(singer => {
+            SelectSingerCommand = ReactiveCommand.CreateFromTask<USinger>(async singer => {
                 if (track.Singer != singer) {
+                    // Pre-load the singer on a background thread before executing the command.
+                    if (singer != null && singer.Found) {
+                        await Task.Run(() => singer.EnsureLoaded());
+                    }
                     DocManager.Inst.StartUndoGroup("command.track.singer");
-                    Log.Information($"Loading Singer: {singer.Name}");
-                    DocManager.Inst.ExecuteCmd(new TrackChangeSingerCommand(DocManager.Inst.Project, track, singer));
+                    Log.Information($"Loading Singer: {singer?.Name}");
+                    DocManager.Inst.ExecuteCmd(new TrackChangeSingerCommand(DocManager.Inst.Project, track, singer!));
                     if (!string.IsNullOrEmpty(singer?.Id) &&
                         Preferences.Default.SingerPhonemizers.TryGetValue(Singer.Id, out var phonemizerName) &&
                         TryChangePhonemizer(phonemizerName)) {

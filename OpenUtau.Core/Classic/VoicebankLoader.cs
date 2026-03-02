@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -38,22 +38,24 @@ namespace OpenUtau.Classic {
 
         public static bool IsTest = false;
 
+        private static IFileSystem FS => FileSystemManager.Inst.FS;
+
         public VoicebankLoader(string basePath) {
             this.basePath = basePath;
         }
 
         public IEnumerable<Voicebank> SearchAll() {
             List<Voicebank> result = new List<Voicebank>();
-            if (!Directory.Exists(basePath)) {
+            if (!FS.DirectoryExists(basePath)) {
                 return result;
             }
             IEnumerable<string> files;
             if (Preferences.Default.LoadDeepFolderSinger) {
-                files = Directory.EnumerateFiles(basePath, kCharTxt, SearchOption.AllDirectories);
+                files = FS.EnumerateFiles(basePath, kCharTxt, SearchOption.AllDirectories);
             } else {
                 // TopDirectoryOnly
-                files = Directory.GetDirectories(basePath)
-                    .SelectMany(path => Directory.EnumerateFiles(path, kCharTxt));
+                files = FS.GetDirectories(basePath)
+                    .SelectMany(path => FS.EnumerateFiles(path, kCharTxt));
             }
             result.AddRange(files
                 .Select(filePath => {
@@ -80,9 +82,9 @@ namespace OpenUtau.Classic {
             var dir = Path.GetDirectoryName(filePath);
             var yamlFile = Path.Combine(dir, kCharYaml);
             VoicebankConfig? bankConfig = null;
-            if (File.Exists(yamlFile)) {
+            if (FS.FileExists(yamlFile)) {
                 try {
-                    using (var stream = File.OpenRead(yamlFile)) {
+                    using (var stream = FS.OpenRead(yamlFile)) {
                         bankConfig = VoicebankConfig.Load(stream);
                     }
                 } catch (Exception e) {
@@ -96,9 +98,9 @@ namespace OpenUtau.Classic {
                 // Legacy detection code. Do not add more here.
                 var enuconfigFile = Path.Combine(dir, kEnuconfigYaml);
                 var dsconfigFile = Path.Combine(dir, kDsconfigYaml);
-                if (File.Exists(enuconfigFile)) {
+                if (FS.FileExists(enuconfigFile)) {
                     voicebank.SingerType = USingerType.Enunu;
-                } else if (File.Exists(dsconfigFile)) {
+                } else if (FS.FileExists(dsconfigFile)) {
                     voicebank.SingerType = USingerType.DiffSinger;
                 } else if (voicebank.SingerType != USingerType.Enunu) {
                     voicebank.SingerType = USingerType.Classic;
@@ -108,7 +110,7 @@ namespace OpenUtau.Classic {
             if (!string.IsNullOrEmpty(bankConfig?.TextFileEncoding)) {
                 encoding = Encoding.GetEncoding(bankConfig.TextFileEncoding);
             }
-            using (var stream = File.OpenRead(filePath)) {
+            using (var stream = FS.OpenRead(filePath)) {
                 ParseCharacterTxt(voicebank, stream, filePath, basePath, encoding);
             }
             if (bankConfig != null) {
@@ -227,14 +229,14 @@ namespace OpenUtau.Classic {
         public static void LoadPrefixMap(Voicebank voicebank) {
             var dir = Path.GetDirectoryName(voicebank.File);
             var filePath = Path.Combine(dir, "prefix.map");
-            if (File.Exists(filePath)) {
+            if (FS.FileExists(filePath)) {
                 LoadMap(voicebank, filePath, string.Empty);
             }
 
             // Append.map for presamp
             var mapDir = Path.Combine(dir, "prefix");
-            if (Directory.Exists(mapDir)) {
-                var maps = Directory.EnumerateFiles(mapDir, "*.map");
+            if (FS.DirectoryExists(mapDir)) {
+                var maps = FS.EnumerateFiles(mapDir, "*.map");
                 foreach (string mapPath in maps) {
                     LoadMap(voicebank, mapPath, Path.GetFileNameWithoutExtension(mapPath));
                 }
@@ -242,7 +244,7 @@ namespace OpenUtau.Classic {
         }
         public static void LoadMap(Voicebank voicebank, string filePath, string color) {
             try {
-                using (var stream = File.OpenRead(filePath)) {
+                using (var stream = FS.OpenRead(filePath)) {
                     var map = ParsePrefixMap(stream, voicebank.TextFileEncoding);
                     foreach (var kv in map) {
                         var subbank = new Subbank() {
@@ -300,7 +302,7 @@ namespace OpenUtau.Classic {
 
         public static void LoadOtoSets(Voicebank voicebank, string dirPath) {
             var otoFile = Path.Combine(dirPath, kOtoIni);
-            if (File.Exists(otoFile)) {
+            if (FS.FileExists(otoFile)) {
                 var otoSet = ParseOtoSet(otoFile, voicebank.TextFileEncoding, voicebank.UseFilenameAsAlias);
                 var voicebankDir = Path.GetDirectoryName(voicebank.File);
                 otoSet.Name = Path.GetRelativePath(voicebankDir, dirPath);
@@ -309,7 +311,7 @@ namespace OpenUtau.Classic {
                 }
                 voicebank.OtoSets.Add(otoSet);
             }
-            var dirs = Directory.GetDirectories(dirPath);
+            var dirs = FS.GetDirectories(dirPath);
             foreach (var dir in dirs) {
                 LoadOtoSets(voicebank, dir);
             }
@@ -321,7 +323,7 @@ namespace OpenUtau.Classic {
                 if (otoDeclaredEncoding != null) {
                     encoding = otoDeclaredEncoding;
                 }
-                using (var stream = File.OpenRead(filePath)) {
+                using (var stream = FS.OpenRead(filePath)) {
                     var otoSet = ParseOtoSet(stream, filePath, encoding);
                     if (!IsTest) {
                         CheckWavExist(otoSet);
@@ -340,7 +342,8 @@ namespace OpenUtau.Classic {
 
         // Oto.ini can declare its own encoding at the beginning of the file with #Charset:
         static Encoding? GetOtoDeclaredEncoding(string filePath) {
-            using (var reader = new StreamReader(filePath, Encoding.GetEncoding("shift_jis"))) {
+            using (var stream = FS.OpenRead(filePath))
+            using (var reader = new StreamReader(stream, Encoding.GetEncoding("shift_jis"))) {
                 for (var i = 0; i < 10; i++) {
                     var line = reader.ReadLine();
                     if (line == null) {
@@ -391,7 +394,7 @@ namespace OpenUtau.Classic {
             // Use filename as alias if not in oto.
             var knownFiles = otoSet.Otos.Where(oto => oto.IsValid).Select(oto => oto.Wav).ToHashSet();
             var dir = Path.GetDirectoryName(otoSet.File);
-            foreach (var wav in Directory.EnumerateFiles(dir, "*.wav", SearchOption.TopDirectoryOnly)) {
+            foreach (var wav in FS.EnumerateFiles(dir, "*.wav", SearchOption.TopDirectoryOnly)) {
                 var file = Path.GetFileName(wav);
                 if (!knownFiles.Contains(file)) {
                     var oto = new Oto {
@@ -408,14 +411,14 @@ namespace OpenUtau.Classic {
         static void CheckWavExist(OtoSet otoSet) {
             var wavGroups = otoSet.Otos.Where(oto => oto.IsValid).GroupBy(oto => oto.Wav);
             var dir = Path.GetDirectoryName(otoSet.File);
-            var NFDFiles = Directory.GetFiles(dir, "*.wav")
+            var NFDFiles = FS.GetFiles(dir, "*.wav")
                 .Select(file => Path.GetFileName(file))
                 .Where(file => !file.IsNormalized())
                 .ToDictionary(file => file.Normalize());
 
             foreach (var group in wavGroups) {
                 string path = Path.Combine(dir, group.Key);
-                if (!File.Exists(path)) {
+                if (!FS.FileExists(path)) {
                     if (NFDFiles.TryGetValue(group.Key.Normalize(), out string NFDFile)) {
                         group.ForEach(oto => oto.Wav = NFDFile);
                     } else {
@@ -510,7 +513,7 @@ namespace OpenUtau.Classic {
 
         public static void WriteOtoSets(Voicebank voicebank) {
             foreach (var otoSet in voicebank.OtoSets) {
-                using (var stream = File.Open(otoSet.File, FileMode.Create, FileAccess.Write)) {
+                using (var stream = FS.OpenFile(otoSet.File, FileMode.Create, FileAccess.Write)) {
                     WriteOtoSet(otoSet, stream, voicebank.TextFileEncoding);
                 }
                 Log.Information($"Write oto set {otoSet.Name}");

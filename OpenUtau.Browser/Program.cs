@@ -12,12 +12,12 @@ using Avalonia.Browser;
 using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.ReactiveUI;
-using OpenUtau.App.Browser;
+using Newtonsoft.Json;
 using OpenUtau.App.Browser;
 using OpenUtau.App.ViewModels;
 using OpenUtau.Core;
+using OpenUtau.Core.Util;
 using Serilog;
-using Serilog.Sinks.BrowserConsole;
 
 namespace OpenUtau.App {
     public class Program {
@@ -94,6 +94,15 @@ namespace OpenUtau.App {
                     Console.WriteLine("[Program] Ensuring OPFS initialized...");
                     await OpfsService.EnsureInitialized();
                     Console.WriteLine("[Program] OPFS initialized successfully");
+
+                    // Import File System Access API helper and register BrowserFileSystem
+                    Console.WriteLine("[Program] Importing fsAccessHelper via JSHost.ImportAsync...");
+                    Log.Information("Importing fsAccessHelper...");
+                    await FsAccessService.EnsureInitialized();
+                    var browserFs = new BrowserFileSystem();
+                    FileSystemManager.Inst.SetFileSystem(browserFs);
+                    Log.Information("BrowserFileSystem registered with FileSystemManager");
+                    Console.WriteLine("[Program] BrowserFileSystem registered successfully");
                 } catch (Exception ex) {
                     Log.Error(ex, "JSHost.ImportAsync failed for opfsHelper and/or bookmarkHelper; browser startup cannot continue safely");
                     throw;
@@ -113,8 +122,11 @@ namespace OpenUtau.App {
                 .MinimumLevel.Verbose();
             
             if (OS.IsBrowser()) {
-                // Browser: write to console (maps to browser console)
-                loggerConfig.WriteTo.BrowserConsole();
+                // Browser: Console.WriteLine maps to console.log in .NET WASM.
+                // Serilog.Sinks.BrowserConsole requires Blazor's IJSRuntime which
+                // is not available in Avalonia Browser, so we use the standard
+                // Console sink instead.
+                loggerConfig.WriteTo.Console();
             } else {
                 // Desktop: write to debug and console
                 loggerConfig

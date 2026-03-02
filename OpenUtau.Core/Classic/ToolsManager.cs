@@ -62,6 +62,26 @@ namespace OpenUtau.Classic {
         }
 
         public void Initialize() {
+            if (OS.IsBrowser()) {
+                // No native resampler/wavtool executables in browser. (yet >:3)
+                // Still register built-in tools so they're available for lookup.
+                lock (_locker) {
+                    resamplers.Clear();
+                    resamplersMap.Clear();
+                    resamplers.Add(new WorldlineResampler());
+                    foreach (var resampler in resamplers) {
+                        resamplersMap[resampler.ToString()] = resampler;
+                    }
+                    wavtools.Clear();
+                    wavtoolsMap.Clear();
+                    wavtools.Add(new SharpWavtool(true));
+                    wavtools.Add(new SharpWavtool(false));
+                    foreach (var wavtool in wavtools) {
+                        wavtoolsMap[wavtool.ToString()] = wavtool;
+                    }
+                }
+                return;
+            }
             lock (_locker) {
                 SearchResamplers();
                 SearchWavtools();

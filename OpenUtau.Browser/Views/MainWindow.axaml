@@ -350,5 +350,7 @@
         </Grid>
       </Carousel>
     </Grid>
+    <!-- Dialog overlay host for modal dialogs in browser -->
+    <Panel Name="DialogHost" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" IsHitTestVisible="False"/>
   </Grid>
 </UserControl>

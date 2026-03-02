@@ -14,34 +14,58 @@ namespace OpenUtau.Core.Util {
     public static class Preferences {
         public static SerializablePreferences Default;
 
+        public static bool PreInitialized;
+
         static Preferences() {
+            if (PreInitialized && Default != null) {
+                return;
+            }
             Load();
         }
 
         public static void Save() {
             try {
-                var prefsPath = PathManager.Inst.PrefsFilePath;
                 var json = JsonConvert.SerializeObject(Default, Formatting.Indented);
                 var bytes = Encoding.UTF8.GetBytes(json);
-                var dir = Path.GetDirectoryName(prefsPath);
-                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) {
-                    Directory.CreateDirectory(dir);
+
+                if (OS.IsBrowser()) {
+                    // Dispatch the write to a worker thread so the
+                    // JS thread stays free to resolve promises
+                    Task.Run(() => {
+                        try {
+                            SaveBytes(bytes);
+                        } catch (Exception e) {
+                            Log.Error(e, "Failed to save prefs (browser worker).");
+                        }
+                    });
+                } else {
+                    SaveBytes(bytes);
                 }
-                File.WriteAllBytes(prefsPath, bytes);
             } catch (Exception e) {
                 Log.Error(e, "Failed to save prefs.");
             }
+        }
+
+        private static void SaveBytes(byte[] bytes) {
+            var fs = FileSystemManager.Inst.FS;
+            var prefsPath = PathManager.Inst.PrefsFilePath;
+            var dir = Path.GetDirectoryName(prefsPath);
+            if (!string.IsNullOrEmpty(dir) && !fs.DirectoryExists(dir)) {
+                fs.CreateDirectory(dir);
+            }
+            fs.WriteAllBytes(prefsPath, bytes);
         }
 
         public static void Reset() {
             Default = new SerializablePreferences();
             try
             {
+                var fs = FileSystemManager.Inst.FS;
                 string exePath = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName);
                 string shippedPrefsPath = Path.Combine(exePath, "prefs-default.json");
-                if (File.Exists(shippedPrefsPath)) {
+                if (fs.FileExists(shippedPrefsPath)) {
                     var shippedPrefs = JsonConvert.DeserializeObject<SerializablePreferences>(
-                        File.ReadAllText(shippedPrefsPath, Encoding.UTF8));
+                        fs.ReadAllText(shippedPrefsPath, Encoding.UTF8));
                     if (shippedPrefs != null) {
                         Default = shippedPrefs;
                     }
@@ -90,26 +114,43 @@ namespace OpenUtau.Core.Util {
         }
 
         private static void AddRecentFile(string filePath) {
-            if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath)) {
-                return;
+            if (OS.IsBrowser()) {
+                // All IFileSystem calls on OPFS paths use .Result on JS interop,
+                // which deadlocks on the main/JS thread.  Run the entire method
+                // on a worker thread.
+                Task.Run(() => AddRecentFileCore(filePath));
+            } else {
+                AddRecentFileCore(filePath);
             }
-            var recent = Default.RecentFiles;
-            recent.RemoveAll(f => f == filePath);
-            recent.Insert(0, filePath);
-            recent.RemoveAll(f => string.IsNullOrEmpty(f)
-                || !File.Exists(f)
-                || f.Contains(PathManager.Inst.TemplatesPath));
-            if (recent.Count > 16) {
-                recent.RemoveRange(16, recent.Count - 16);
+        }
+
+        private static void AddRecentFileCore(string filePath) {
+            try {
+                var fs = FileSystemManager.Inst.FS;
+                if (string.IsNullOrEmpty(filePath) || !fs.FileExists(filePath)) {
+                    return;
+                }
+                var recent = Default.RecentFiles;
+                recent.RemoveAll(f => f == filePath);
+                recent.Insert(0, filePath);
+                recent.RemoveAll(f => string.IsNullOrEmpty(f)
+                    || !fs.FileExists(f)
+                    || f.Contains(PathManager.Inst.TemplatesPath));
+                if (recent.Count > 16) {
+                    recent.RemoveRange(16, recent.Count - 16);
+                }
+                Save();
+            } catch (Exception e) {
+                Log.Error(e, "Failed to add recent file.");
             }
-            Save();
         }
 
         private static void Load() {
             try {
+                var fs = FileSystemManager.Inst.FS;
                 var prefsPath = PathManager.Inst.PrefsFilePath;
-                if (File.Exists(prefsPath)) {
-                    var bytes = File.ReadAllBytes(prefsPath);
+                if (fs.FileExists(prefsPath)) {
+                    var bytes = fs.ReadAllBytes(prefsPath);
                     if (bytes != null) {
                         var json = Encoding.UTF8.GetString(bytes);
                         Default = JsonConvert.DeserializeObject<SerializablePreferences>(json);

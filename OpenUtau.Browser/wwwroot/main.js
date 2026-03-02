@@ -53,3 +53,27 @@ console.log('[main.js] Running .NET main...');
 await dotnetRuntime.runMain(config.mainAssemblyName, [globalThis.location.href]);
 
 console.log('[main.js] App started successfully!');
+
+// Show audio enable button on load
+const audioOverlay = document.getElementById('audio-enable-overlay');
+const audioBtn = document.getElementById('audio-enable-btn');
+
+if (audioOverlay && audioBtn) {
+    audioOverlay.style.display = 'flex';
+    
+    audioBtn.addEventListener('click', async () => {
+        try {
+            // Initialize audio if not already done (via AudioBridge)
+            if (audioBridge.initAudio) {
+                await audioBridge.initAudio();
+            }
+            if (audioBridge.resumeAudio) {
+                await audioBridge.resumeAudio();
+            }
+            audioOverlay.style.display = 'none';
+            console.log('[main.js] Audio enabled');
+        } catch (e) {
+            console.error('[main.js] Failed to enable audio:', e);
+        }
+    });
+}

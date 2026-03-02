@@ -12,6 +12,8 @@ using Serilog;
 
 namespace OpenUtau.Classic {
     public class VoicebankFiles : Core.Util.SingletonBase<VoicebankFiles> {
+        private static IFileSystem FS => FileSystemManager.Inst.FS;
+
         public string GetSourceTempPath(string singerId, UOto oto, string ext = null) {
             if (string.IsNullOrEmpty(ext)) {
                 ext = Path.GetExtension(oto.File);
@@ -65,34 +67,49 @@ namespace OpenUtau.Classic {
         }
 
         private void CopyOrStamp(string source, string dest, bool required) {
-            if (!File.Exists(source)) {
+            if (!FS.FileExists(source)) {
                 if (required) {
                     Log.Error($"Source file {source} not found");
                     throw new FileNotFoundException($"Source file {source} not found");
                 }
-            } else if (!File.Exists(dest)) {
+            } else if (!FS.FileExists(dest)) {
                 Log.Verbose($"Copy {source} to {dest}");
-                File.Copy(source, dest);
+                FS.FileCopy(source, dest);
             }
         }
 
         private void DecodeOrStamp(string source, string dest) {
-            if (!File.Exists(source)) {
+            if (!FS.FileExists(source)) {
                 Log.Error($"Source file {source} not found");
                 throw new FileNotFoundException($"Source file {source} not found");
             }
-            if (File.Exists(dest)) {
+            if (FS.FileExists(dest)) {
                 return;
             }
             if (Path.GetExtension(source) == ".wav") {
                 Log.Verbose($"Copy {source} to {dest}");
-                File.Copy(source, dest);
+                FS.FileCopy(source, dest);
                 return;
             }
             Log.Verbose($"Decode {source} to {dest}");
-            using (var outputStream = new FileStream(dest, FileMode.Create)) {
-                using (var waveStream = Core.Format.Wave.OpenFile(source)) {
-                    WaveFileWriter.WriteWavFileToStream(outputStream, waveStream);
+            // Wave.OpenFile expects a filesystem path. If source is behind FS Access API
+            // (browser), we need to copy it to a temp file first so Wave.OpenFile can read it.
+            string actualSource = source;
+            string tempSource = null;
+            if (OS.IsBrowser()) {
+                tempSource = dest + ".src" + Path.GetExtension(source);
+                FS.FileCopy(source, tempSource, true);
+                actualSource = tempSource;
+            }
+            try {
+                using (var outputStream = new FileStream(dest, FileMode.Create)) {
+                    using (var waveStream = Core.Format.Wave.OpenFile(actualSource)) {
+                        WaveFileWriter.WriteWavFileToStream(outputStream, waveStream);
+                    }
+                }
+            } finally {
+                if (tempSource != null && File.Exists(tempSource)) {
+                    File.Delete(tempSource);
                 }
             }
         }
@@ -101,12 +118,12 @@ namespace OpenUtau.Classic {
             var expire = DateTime.Now - TimeSpan.FromDays(7);
             string path = PathManager.Inst.CachePath;
             Log.Information($"ReleaseSourceTemp {path}");
-            Directory.EnumerateFiles(path, "*.*", SearchOption.TopDirectoryOnly)
+            FS.EnumerateFiles(path, "*.*", SearchOption.TopDirectoryOnly)
                 .Where(file =>
-                    !File.GetAttributes(file).HasFlag(FileAttributes.Directory)
-                        && File.GetCreationTime(file) < expire)
+                    !FS.GetFileAttributes(file).HasFlag(FileAttributes.Directory)
+                        && FS.GetFileCreationTime(file) < expire)
                 .ToList()
-                .ForEach(file => File.Delete(file));
+                .ForEach(file => FS.FileDelete(file));
         }
 
         public static string GetFrqFile(string source) {

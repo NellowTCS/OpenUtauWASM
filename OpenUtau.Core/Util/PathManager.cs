@@ -99,14 +99,26 @@ namespace OpenUtau.Core {
         public string NotePresetsFilePath => Path.Combine(DataPath, "notepresets.json");
         public string BackupsPath => Path.Combine(DataPath, "Backups");
 
+        private readonly List<string> additionalSingersPaths = new List<string>();
+
+        public void AddSingersPath(string path) {
+            if (!string.IsNullOrEmpty(path) && !additionalSingersPaths.Contains(path)) {
+                additionalSingersPaths.Add(path);
+            }
+        }
+
         public List<string> SingersPaths {
             get {
+                var fs = FileSystemManager.Inst.FS;
                 var list = new List<string> { SingersPath };
-                if (Directory.Exists(SingersPathOld)) {
+                if (fs.DirectoryExists(SingersPathOld)) {
                     list.Add(SingersPathOld);
                 }
-                if (Directory.Exists(AdditionalSingersPath)) {
+                if (fs.DirectoryExists(AdditionalSingersPath)) {
                     list.Add(AdditionalSingersPath);
+                }
+                foreach (var path in additionalSingersPaths) {
+                    list.Add(path);
                 }
                 return list.Distinct().ToList();
             }
@@ -116,7 +128,8 @@ namespace OpenUtau.Core {
 
         public string GetPartSavePath(string exportPath, string partName, int partNo) {
             var dir = Path.GetDirectoryName(exportPath);
-            Directory.CreateDirectory(dir);
+            var fs = FileSystemManager.Inst.FS;
+            fs.CreateDirectory(dir);
             var filename = Path.GetFileNameWithoutExtension(exportPath);
             var name = invalid.Replace(partName, "_");
             if (DocManager.Inst.Project.parts.FindAll(p => p is UVoicePart).Count(p => p.DisplayName == partName) > 1) {
@@ -127,7 +140,8 @@ namespace OpenUtau.Core {
 
         public string GetExportPath(string exportPath, UTrack track) {
             var dir = Path.GetDirectoryName(exportPath);
-            Directory.CreateDirectory(dir);
+            var fs = FileSystemManager.Inst.FS;
+            fs.CreateDirectory(dir);
             var filename = Path.GetFileNameWithoutExtension(exportPath);
             var trackName = invalid.Replace(track.TrackName, "_");
             if (DocManager.Inst.Project.tracks.Count(t => t.TrackName == track.TrackName) > 1) {
@@ -137,18 +151,19 @@ namespace OpenUtau.Core {
         }
 
         public void ClearCache() {
-            var files = Directory.GetFiles(CachePath);
+            var fs = FileSystemManager.Inst.FS;
+            var files = fs.GetFiles(CachePath);
             foreach (var file in files) {
                 try {
-                    File.Delete(file);
+                    fs.FileDelete(file);
                 } catch (Exception e) {
                     Log.Error(e, $"Failed to delete file {file}");
                 }
             }
-            var dirs = Directory.GetDirectories(CachePath);
+            var dirs = fs.GetDirectories(CachePath);
             foreach (var dir in dirs) {
                 try {
-                    Directory.Delete(dir, true);
+                    fs.DeleteDirectory(dir, true);
                 } catch (Exception e) {
                     Log.Error(e, $"Failed to delete dir {dir}");
                 }
@@ -157,11 +172,14 @@ namespace OpenUtau.Core {
 
         readonly static string[] sizes = { "B", "KB", "MB", "GB", "TB", "PB", "EB" };
         public string GetCacheSize() {
-            if (!Directory.Exists(CachePath)) {
+            var fs = FileSystemManager.Inst.FS;
+            if (!fs.DirectoryExists(CachePath)) {
                 return "0B";
             }
-            var dir = new DirectoryInfo(CachePath);
-            double size = dir.GetFiles("*", SearchOption.AllDirectories).Sum(f => f.Length);
+            double size = fs.EnumerateFiles(CachePath, "*", SearchOption.AllDirectories)
+                .Sum(f => {
+                    try { return fs.GetFileLength(f); } catch { return 0L; }
+                });
             int order = 0;
             while (size >= 1024 && order < sizes.Length - 1) {
                 order++;

@@ -16,6 +16,7 @@ namespace OpenUtau.Classic {
         static readonly Encoding ShiftJIS = Encoding.GetEncoding("shift_jis");
         static List<string> undefinedFlags = new List<string>();
         static string tool2 = string.Empty;
+        private static IFileSystem FS => FileSystemManager.Inst.FS;
 
         public static UProject Load(string[] files) {
             foreach (var file in files) {
@@ -28,7 +29,8 @@ namespace OpenUtau.Classic {
             undefinedFlags.Clear();
             foreach (var file in files) {
                 var encoding = DetectEncoding(file);
-                using (var reader = new StreamReader(file, encoding)) {
+                using (var stream = FS.OpenRead(file))
+                using (var reader = new StreamReader(stream, encoding)) {
                     projects.Add(Load(reader, file));
                 }
             }
@@ -57,7 +59,8 @@ namespace OpenUtau.Classic {
         }
 
         public static Encoding DetectEncoding(string file) {
-            using (var reader = new StreamReader(file, ShiftJIS)) {
+            using (var stream = FS.OpenRead(file))
+            using (var reader = new StreamReader(stream, ShiftJIS)) {
                 for (var i = 0; i < 10; i++) {
                     var line = reader.ReadLine();
                     if (line == null) {
@@ -285,7 +288,8 @@ namespace OpenUtau.Classic {
         public static void SavePart(UProject project, UVoicePart part, string filePath) {
             var track = project.tracks[part.trackNo];
             var ustNotes = NotesToUstNotes(project, track, part, part.notes);
-            using (var writer = new StreamWriter(filePath, false, ShiftJIS)) {
+            using (var stream = FS.OpenFile(filePath, FileMode.Create, FileAccess.Write))
+            using (var writer = new StreamWriter(stream, ShiftJIS)) {
                 WriteHeader(project, part, writer);
                 for (var i = 0; i < ustNotes.Count; i++) {
                     writer.WriteLine($"[#{i:D4}]");
@@ -367,7 +371,8 @@ namespace OpenUtau.Classic {
             }
             var sequence = new List<UNote>();
             var track = project.tracks[part.trackNo];
-            using (var writer = new StreamWriter(filePath, false, Encoding.GetEncoding(encoding))) {
+            using (var stream = FS.OpenFile(filePath, FileMode.Create, FileAccess.Write))
+            using (var writer = new StreamWriter(stream, Encoding.GetEncoding(encoding))) {
                 WriteHeader(project, part, writer);
                 var position = 0;
                 if (prev != null) {
@@ -436,7 +441,8 @@ namespace OpenUtau.Classic {
             List<UNote> sequence, string diffFile, string encoding = "shift_jis") {
             var toRemove = new List<UNote>();
             var toAdd = new List<UNote>();
-            using (var reader = new StreamReader(diffFile, Encoding.GetEncoding(encoding))) {
+            using (var stream = FS.OpenRead(diffFile))
+            using (var reader = new StreamReader(stream, Encoding.GetEncoding(encoding))) {
                 var blocks = Ini.ReadBlocks(reader, diffFile, @"\[#\w+\]");
                 int index = 0;
                 foreach (var block in blocks) {
@@ -498,7 +504,8 @@ namespace OpenUtau.Classic {
         }
         
         public static void WriteForSetParam(UProject project, string filePath, List<UOto> otos) {
-            using (var writer = new StreamWriter(filePath, false, Encoding.GetEncoding("shift_jis"))) {
+            using (var stream = FS.OpenFile(filePath, FileMode.Create, FileAccess.Write))
+            using (var writer = new StreamWriter(stream, Encoding.GetEncoding("shift_jis"))) {
                 writer.WriteLine("[#SETTING]");
                 writer.WriteLine($"Tempo=120");
                 writer.WriteLine("Tracks=1");
