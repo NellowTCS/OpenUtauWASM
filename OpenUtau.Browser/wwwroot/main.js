@@ -26,7 +26,8 @@ const blazorInternal = {
     Blazor: {
         _internal: {
             invokeJSJson: (...args) => {
-                throw new Error(`[main.js] Blazor._internal.invokeJSJson called unexpectedly: ${JSON.stringify(args)}`);
+                console.warn(`[main.js] Blazor._internal.invokeJSJson called unexpectedly: ${JSON.stringify(args)}`);
+                return null;
             },
             endInvokeDotNetFromJS: () => {
             },
@@ -61,7 +62,11 @@ const audioBtn = document.getElementById('audio-enable-btn');
 if (audioOverlay && audioBtn) {
     audioOverlay.style.display = 'flex';
     
+    let isAudioInitializing = false;
+    
     audioBtn.addEventListener('click', async () => {
+        if (isAudioInitializing) return;
+        isAudioInitializing = true;
         try {
             // Initialize audio if not already done (via AudioBridge)
             if (audioBridge.initAudio) {
@@ -74,6 +79,8 @@ if (audioOverlay && audioBtn) {
             console.log('[main.js] Audio enabled');
         } catch (e) {
             console.error('[main.js] Failed to enable audio:', e);
+        } finally {
+            isAudioInitializing = false;
         }
     });
 }

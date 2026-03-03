@@ -151,8 +151,8 @@ namespace OpenUtau.App.Browser {
             return await DownloadFromOpfsAsync(opfsPath, filename);
         }
 
-        // Download bytes directly to user-chosen location via save file picker.
-        public static async Task<string> DownloadBytesAsync(string filename, byte[] data) {
+        // Download WAV bytes directly to user-chosen location via save file picker.
+        public static async Task<string> DownloadWavBytesAsync(string filename, byte[] data) {
             await EnsureInitialized();
             return await SaveFilePickerJSAsync(filename, "WAV Audio", ".wav", data);
         }

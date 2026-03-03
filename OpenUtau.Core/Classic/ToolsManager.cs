@@ -65,21 +65,8 @@ namespace OpenUtau.Classic {
             if (OS.IsBrowser()) {
                 // No native resampler/wavtool executables in browser. (yet >:3)
                 // Still register built-in tools so they're available for lookup.
-                lock (_locker) {
-                    resamplers.Clear();
-                    resamplersMap.Clear();
-                    resamplers.Add(new WorldlineResampler());
-                    foreach (var resampler in resamplers) {
-                        resamplersMap[resampler.ToString()] = resampler;
-                    }
-                    wavtools.Clear();
-                    wavtoolsMap.Clear();
-                    wavtools.Add(new SharpWavtool(true));
-                    wavtools.Add(new SharpWavtool(false));
-                    foreach (var wavtool in wavtools) {
-                        wavtoolsMap[wavtool.ToString()] = wavtool;
-                    }
-                }
+                RegisterDefaultResamplers();
+                RegisterDefaultWavtools();
                 return;
             }
             lock (_locker) {
@@ -88,10 +75,31 @@ namespace OpenUtau.Classic {
             }
         }
 
+        private void RegisterDefaultResamplers() {
+            lock (_locker) {
+                resamplers.Clear();
+                resamplersMap.Clear();
+                resamplers.Add(new WorldlineResampler());
+                foreach (var resampler in resamplers) {
+                    resamplersMap[resampler.ToString()] = resampler;
+                }
+            }
+        }
+
+        private void RegisterDefaultWavtools() {
+            lock (_locker) {
+                wavtools.Clear();
+                wavtoolsMap.Clear();
+                wavtools.Add(new SharpWavtool(true));
+                wavtools.Add(new SharpWavtool(false));
+                foreach (var wavtool in wavtools) {
+                    wavtoolsMap[wavtool.ToString()] = wavtool;
+                }
+            }
+        }
+
         public void SearchResamplers() {
-            resamplers.Clear();
-            resamplersMap.Clear();
-            resamplers.Add(new WorldlineResampler());
+            RegisterDefaultResamplers();
             string basePath = PathManager.Inst.ResamplersPath;
             try {
                 Directory.CreateDirectory(basePath);
@@ -113,10 +121,7 @@ namespace OpenUtau.Classic {
         }
 
         public void SearchWavtools() {
-            wavtools.Clear();
-            wavtoolsMap.Clear();
-            wavtools.Add(new SharpWavtool(true));
-            wavtools.Add(new SharpWavtool(false));
+            RegisterDefaultWavtools();
             string basePath = PathManager.Inst.WavtoolsPath;
             try {
                 Directory.CreateDirectory(basePath);

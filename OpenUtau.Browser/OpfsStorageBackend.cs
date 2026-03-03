@@ -7,6 +7,10 @@ namespace OpenUtau.App.Browser {
     public class OpfsStorageBackend : Core.IStorageBackend {
         private readonly string basePath;
 
+        public OpfsStorageBackend(string basePath = "/openutau") {
+            this.basePath = basePath;
+        }
+
         private static Task EnsureReadyAsync() => OpfsService.EnsureInitialized();
 
         private string GetFullPath(string path) {

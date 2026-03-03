@@ -23,21 +23,43 @@ namespace OpenUtau.Core.Util {
             Load();
         }
 
+        private static Task? pendingSaveTask;
+
         public static void Save() {
             try {
                 var json = JsonConvert.SerializeObject(Default, Formatting.Indented);
                 var bytes = Encoding.UTF8.GetBytes(json);
 
                 if (OS.IsBrowser()) {
-                    // Dispatch the write to a worker thread so the
-                    // JS thread stays free to resolve promises
-                    Task.Run(() => {
+                    pendingSaveTask = Task.Run(() => {
                         try {
                             SaveBytes(bytes);
                         } catch (Exception e) {
                             Log.Error(e, "Failed to save prefs (browser worker).");
                         }
                     });
+                } else {
+                    SaveBytes(bytes);
+                }
+            } catch (Exception e) {
+                Log.Error(e, "Failed to save prefs.");
+            }
+        }
+
+        public static async Task SaveAsync() {
+            try {
+                var json = JsonConvert.SerializeObject(Default, Formatting.Indented);
+                var bytes = Encoding.UTF8.GetBytes(json);
+
+                if (OS.IsBrowser()) {
+                    var task = Task.Run(() => {
+                        try {
+                            SaveBytes(bytes);
+                        } catch (Exception e) {
+                            Log.Error(e, "Failed to save prefs (browser worker).");
+                        }
+                    });
+                    await task;
                 } else {
                     SaveBytes(bytes);
                 }

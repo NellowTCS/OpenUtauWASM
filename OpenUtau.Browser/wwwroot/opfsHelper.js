@@ -59,12 +59,11 @@ async function readFileIntoBuffer(fileName, buffer, offset, length) {
         const arrayBuffer = await file.arrayBuffer();
         const uint8 = new Uint8Array(arrayBuffer);
         console.log("[OPFS] File size:", uint8.length, "Requested:", length);
-        // Copy into provided buffer at offset
-        for (let i = 0; i < length && i < uint8.length; i++) {
-            buffer[offset + i] = uint8[i];
-        }
-        console.log("[OPFS] readFileIntoBuffer done, read:", Math.min(length, uint8.length));
-        return Math.min(length, uint8.length);
+        // Copy into provided buffer at offset using bulk copy
+        const toRead = Math.min(length, uint8.length);
+        buffer.set(uint8.subarray(0, toRead), offset);
+        console.log("[OPFS] readFileIntoBuffer done, read:", toRead);
+        return toRead;
     } catch (e) {
         console.error("[OPFS] readFileIntoBuffer error:", e);
         return -1;

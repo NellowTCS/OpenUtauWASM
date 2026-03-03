@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using OpenUtau.Core;
 using OpenUtau.Core.Ustx;
@@ -44,7 +45,8 @@ namespace OpenUtau.Classic {
         List<UOto> otos = new List<UOto>();
         Dictionary<string, UOto> otoMap = new Dictionary<string, UOto>();
         OtoWatcher otoWatcher;
-        private volatile bool loading; // Browser async loading guard
+        private int loadingFlag; // Browser async loading guard (0 = not loading, 1 = loading)
+        private Task? loadingTask; // Track the async loading task for awaiting
 
         public bool? UseFilenameAsAlias { get => voicebank.UseFilenameAsAlias; set => voicebank.UseFilenameAsAlias = value; }
         public Dictionary<string, IFrqFiles> Frqs { get; set; } = new Dictionary<string, IFrqFiles>();
@@ -61,18 +63,17 @@ namespace OpenUtau.Classic {
             if (OS.IsBrowser()) {
                 // kick off async loading on a background thread and return immediately.
                 // After loading completes, a re-validation is triggered.
-                if (loading) {
-                    return;
+                if (Interlocked.CompareExchange(ref loadingFlag, 1, 0) != 0) {
+                    return; // Already loading
                 }
-                loading = true;
-                Task.Run(() => {
+                loadingTask = Task.Run(() => {
                     try {
                         Reload();
                         Log.Information($"Singer {Name} loaded asynchronously.");
                     } catch (Exception e) {
                         Log.Error(e, $"Failed to async-load singer {Name}");
                     } finally {
-                        loading = false;
+                        Interlocked.Exchange(ref loadingFlag, 0);
                     }
                     // Trigger re-validation on the UI thread now that singer data is available.
                     DocManager.Inst.PostOnUIThread?.Invoke(() => {
@@ -82,6 +83,20 @@ namespace OpenUtau.Classic {
                 return;
             }
             Reload();
+        }
+
+        public override async Task EnsureLoadedAsync() {
+            if (Loaded) {
+                return;
+            }
+            if (OS.IsBrowser()) {
+                EnsureLoaded(); // Kick off loading if not already
+                if (loadingTask != null) {
+                    await loadingTask;
+                }
+                return;
+            }
+            EnsureLoaded();
         }
 
         public override void Reload() {
@@ -116,7 +131,9 @@ namespace OpenUtau.Classic {
                 }
             } else {
                 avatarData = null;
-                Log.Error("Avatar can't be found");
+                if (!string.IsNullOrWhiteSpace(Avatar)) {
+                    Log.Warning("Avatar file not found: {Path}", Avatar);
+                }
             }
 
             subbanks.Clear();

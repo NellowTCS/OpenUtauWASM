@@ -1,9 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using OpenUtau.Classic;
 using OpenUtau.Core.Util;
 
@@ -290,6 +291,10 @@ namespace OpenUtau.Core.Ustx {
         }
 
         public virtual void EnsureLoaded() { }
+        public virtual Task EnsureLoadedAsync() {
+            EnsureLoaded();
+            return Task.CompletedTask;
+        }
         public virtual void Reload() { }
         public virtual void Save() { }
         public virtual bool TryGetOto(string phoneme, out UOto oto) {

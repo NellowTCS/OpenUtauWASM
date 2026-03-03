@@ -105,12 +105,14 @@ namespace OpenUtau.App.Browser {
             return System.Text.Encoding.UTF8.GetString(bytes);
         }
 
-        public static async Task DeleteAsync(string fileName) {
+        public static async Task<bool> DeleteAsync(string fileName) {
             try {
                 await EnsureInitialized();
                 await DeleteFileAsync(fileName);
+                return true;
             } catch (Exception e) {
                 Log.Error(e, "Failed to delete file from OPFS: {FileName}", fileName);
+                return false;
             }
         }
 
@@ -124,21 +126,25 @@ namespace OpenUtau.App.Browser {
             }
         }
 
-        public static async Task MkDirAsync(string dirName) {
+        public static async Task<bool> MkDirAsync(string dirName) {
             try {
                 await EnsureInitialized();
                 await CreateDirAsync(dirName);
+                return true;
             } catch (Exception e) {
                 Log.Error(e, "Failed to create directory in OPFS: {DirName}", dirName);
+                return false;
             }
         }
 
-        public static async Task RemoveDirAsync(string dirName) {
+        public static async Task<bool> RemoveDirAsync(string dirName) {
             try {
                 await EnsureInitialized();
                 await DeleteDirAsync(dirName);
+                return true;
             } catch (Exception e) {
                 Log.Error(e, "Failed to delete directory in OPFS: {DirName}", dirName);
+                return false;
             }
         }
     }

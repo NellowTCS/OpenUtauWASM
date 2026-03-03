@@ -67,38 +67,41 @@ namespace OpenUtau.App.ViewModels {
                 if (track.Singer != singer) {
                     // Pre-load the singer on a background thread before executing the command.
                     if (singer != null && singer.Found) {
-                        await Task.Run(() => singer.EnsureLoaded());
+                        await singer.EnsureLoadedAsync();
                     }
                     DocManager.Inst.StartUndoGroup("command.track.singer");
-                    Log.Information($"Loading Singer: {singer?.Name}");
-                    DocManager.Inst.ExecuteCmd(new TrackChangeSingerCommand(DocManager.Inst.Project, track, singer!));
-                    if (!string.IsNullOrEmpty(singer?.Id) &&
-                        Preferences.Default.SingerPhonemizers.TryGetValue(Singer.Id, out var phonemizerName) &&
-                        TryChangePhonemizer(phonemizerName)) {
-                    } else if (!string.IsNullOrEmpty(singer?.DefaultPhonemizer)) {
-                        TryChangePhonemizer(singer.DefaultPhonemizer);
-                    }
-                    if (singer == null || !singer.Found) {
-                        var settings = new URenderSettings();
-                        DocManager.Inst.ExecuteCmd(new TrackChangeRenderSettingCommand(DocManager.Inst.Project, track, settings));
-                    } else if (singer.SingerType != track.RendererSettings.Renderer?.SingerType) {
-                        var settings = new URenderSettings {
-                            renderer = Core.Render.Renderers.GetDefaultRenderer(singer.SingerType),
-                        };
-                        DocManager.Inst.ExecuteCmd(new TrackChangeRenderSettingCommand(DocManager.Inst.Project, track, settings));
-                    }
-                    DocManager.Inst.ExecuteCmd(new VoiceColorRemappingNotification(track.TrackNo, true));
-                    DocManager.Inst.EndUndoGroup();
-                    if (!string.IsNullOrEmpty(singer?.Id) && singer.Found) {
-                        Preferences.Default.RecentSingers.Remove(singer.Id);
-                        Preferences.Default.RecentSingers.Insert(0, singer.Id);
-                        if (Preferences.Default.RecentSingers.Count > 16) {
-                            Preferences.Default.RecentSingers.RemoveRange(
-                                16, Preferences.Default.RecentSingers.Count - 16);
+                    try {
+                        Log.Information($"Loading Singer: {singer?.Name}");
+                        DocManager.Inst.ExecuteCmd(new TrackChangeSingerCommand(DocManager.Inst.Project, track, singer));
+                        if (!string.IsNullOrEmpty(singer?.Id) &&
+                            Preferences.Default.SingerPhonemizers.TryGetValue(singer.Id, out var phonemizerName) &&
+                            TryChangePhonemizer(phonemizerName)) {
+                        } else if (!string.IsNullOrEmpty(singer?.DefaultPhonemizer)) {
+                            TryChangePhonemizer(singer.DefaultPhonemizer);
                         }
+                        if (singer == null || !singer.Found) {
+                            var settings = new URenderSettings();
+                            DocManager.Inst.ExecuteCmd(new TrackChangeRenderSettingCommand(DocManager.Inst.Project, track, settings));
+                        } else if (singer.SingerType != track.RendererSettings.Renderer?.SingerType) {
+                            var settings = new URenderSettings {
+                                renderer = Core.Render.Renderers.GetDefaultRenderer(singer.SingerType),
+                            };
+                            DocManager.Inst.ExecuteCmd(new TrackChangeRenderSettingCommand(DocManager.Inst.Project, track, settings));
+                        }
+                        DocManager.Inst.ExecuteCmd(new VoiceColorRemappingNotification(track.TrackNo, true));
+                        if (!string.IsNullOrEmpty(singer?.Id) && singer.Found) {
+                            Preferences.Default.RecentSingers.Remove(singer.Id);
+                            Preferences.Default.RecentSingers.Insert(0, singer.Id);
+                            if (Preferences.Default.RecentSingers.Count > 16) {
+                                Preferences.Default.RecentSingers.RemoveRange(
+                                    16, Preferences.Default.RecentSingers.Count - 16);
+                            }
+                        }
+                        Preferences.Save();
+                        MessageBus.Current.SendMessage(new PianorollRefreshEvent("Part"));
+                    } finally {
+                        DocManager.Inst.EndUndoGroup();
                     }
-                    Preferences.Save();
-                    MessageBus.Current.SendMessage(new PianorollRefreshEvent("Part"));
                 }
                 this.RaisePropertyChanged(nameof(Singer));
                 this.RaisePropertyChanged(nameof(Renderer));

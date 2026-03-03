@@ -118,7 +118,9 @@ namespace OpenUtau.Core {
                     list.Add(AdditionalSingersPath);
                 }
                 foreach (var path in additionalSingersPaths) {
-                    list.Add(path);
+                    if (fs.DirectoryExists(path)) {
+                        list.Add(path);
+                    }
                 }
                 return list.Distinct().ToList();
             }

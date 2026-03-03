@@ -475,7 +475,15 @@ export function startContinuousFeed(intervalMs) {
         }
     })();
 
-    feedInterval = null;
+    const interval = intervalMs || 100;
+    feedInterval = setInterval(() => {
+        if (!isPlaying) {
+            clearInterval(feedInterval);
+            feedInterval = null;
+        } else {
+            requestAudioData('continuous');
+        }
+    }, interval);
     debugLog('[AudioBridge] startContinuousFeed done');
 }
 

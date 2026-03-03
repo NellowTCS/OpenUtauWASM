@@ -8,7 +8,7 @@ namespace OpenUtau.Classic {
         public bool Paused { get; set; }
 
         private ClassicSinger singer;
-        private FileSystemWatcher watcher;
+        private FileSystemWatcher? watcher;
 
         public OtoWatcher(ClassicSinger singer, string path) {
             this.singer = singer;

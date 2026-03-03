@@ -81,9 +81,7 @@ export async function readFileIntoBuffer(path, buffer, offset, length) {
         const arrayBuffer = await file.arrayBuffer();
         const uint8 = new Uint8Array(arrayBuffer);
         const toRead = Math.min(length, uint8.length);
-        for (let i = 0; i < toRead; i++) {
-            buffer[offset + i] = uint8[i];
-        }
+        buffer.set(uint8.subarray(0, toRead), offset);
         return toRead;
     } catch (e) {
         console.error('[FSAccess] readFileIntoBuffer error for', path, ':', e);
@@ -705,8 +703,12 @@ async function findHandleCaseInsensitive(dirHandle, name, kind) {
 
 // Convert a simple file pattern to regex.
 function patternToRegex(pattern) {
-    if (!pattern || pattern === '*' || pattern === '*.*') {
+    if (!pattern || pattern === '*') {
         return /^.+$/;
+    }
+    // Special case: *.* means "must have at least one dot"
+    if (pattern === '*.*') {
+        return /^.+\..+$/;
     }
     const escaped = pattern
         .replace(/[.+^${}()|[\]\\]/g, '\\$&')

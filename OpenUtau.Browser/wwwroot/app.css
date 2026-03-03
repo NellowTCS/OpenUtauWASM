@@ -4,7 +4,7 @@
     height: 100%;
     width: 100%;
     background: white;
-    font-family: 'Outfit', sans-serif;
+    font-family: Outfit, sans-serif;
     justify-content: center;
     align-items: center;
     display: flex;
@@ -74,7 +74,7 @@
 .audio-enable-btn {
     padding: 20px 40px;
     font-size: 1.5rem;
-    font-family: 'Outfit', sans-serif;
+    font-family: Outfit, sans-serif;
     background: #0D6EFD;
     color: white;
     border: none;
@@ -86,4 +86,9 @@
 .audio-enable-btn:hover {
     background: #0b5ed7;
     transform: scale(1.05);
+}
+
+.audio-enable-btn:focus-visible {
+    outline: 2px solid #0b5ed7;
+    outline-offset: 2px;
 }

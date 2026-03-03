@@ -102,14 +102,14 @@ namespace OpenUtau.Classic {
                 actualSource = tempSource;
             }
             try {
-                using (var outputStream = new FileStream(dest, FileMode.Create)) {
+                using (var outputStream = FS.OpenFile(dest, FileMode.Create, FileAccess.Write)) {
                     using (var waveStream = Core.Format.Wave.OpenFile(actualSource)) {
                         WaveFileWriter.WriteWavFileToStream(outputStream, waveStream);
                     }
                 }
             } finally {
-                if (tempSource != null && File.Exists(tempSource)) {
-                    File.Delete(tempSource);
+                if (tempSource != null && FS.FileExists(tempSource)) {
+                    FS.FileDelete(tempSource);
                 }
             }
         }

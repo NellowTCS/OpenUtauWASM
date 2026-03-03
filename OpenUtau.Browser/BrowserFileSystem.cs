@@ -135,8 +135,8 @@ namespace OpenUtau.App.Browser {
 
         public long GetFileLength(string path) {
             if (IsFsAccessPath(path)) {
-                var data = FsAccessService.ReadFileAsync(path).Result;
-                return data?.Length ?? 0;
+                var size = FsAccessService.GetFileSizeAsync(path).Result;
+                return size >= 0 ? size : 0;
             }
             try {
                 return new FileInfo(path).Length;

@@ -1,10 +1,13 @@
 using System;
 using System.Runtime.InteropServices.JavaScript;
+using System.Threading;
+using System.Threading.Tasks;
 using Serilog;
 
 namespace OpenUtau.App.Browser {
     public static partial class RecentPathService {
         private static bool initialized;
+        private static readonly SemaphoreSlim initLock = new SemaphoreSlim(1, 1);
 
         [JSImport("saveRecentPath", "bookmarkHelper")]
         internal static partial void SaveRecentPathImpl(string path, string name);
@@ -12,14 +15,18 @@ namespace OpenUtau.App.Browser {
         [JSImport("getRecentPath", "bookmarkHelper")]
         internal static partial string? GetRecentPathImpl(string name);
 
-        public static async System.Threading.Tasks.Task EnsureInitializedAsync() {
+        public static async Task EnsureInitializedAsync() {
             if (initialized) return;
+            await initLock.WaitAsync();
             try {
+                if (initialized) return;
                 await JSHost.ImportAsync("bookmarkHelper", "../bookmarkHelper.js");
                 initialized = true;
             } catch (Exception e) {
                 Log.Error(e, "Failed to initialize recent path service");
                 throw;
+            } finally {
+                initLock.Release();
             }
         }
 
@@ -27,7 +34,8 @@ namespace OpenUtau.App.Browser {
             try {
                 await EnsureInitializedAsync();
                 SaveRecentPathImpl(path, name);
-                Log.Information("Saved recent path: {Name} = {Path}", name, path);
+                var sanitizedPath = System.IO.Path.GetFileName(path);
+                Log.Information("Saved recent path: {Name} = {Path}", name, sanitizedPath);
             } catch (Exception e) {
                 Log.Error(e, "Failed to save recent path: {Name}", name);
                 throw;

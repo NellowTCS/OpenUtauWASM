@@ -366,7 +366,7 @@ namespace OpenUtau.App.Views {
                     foreach (var wavFile in wavFiles) {
                         var wavName = Path.GetFileName(wavFile);
                         var bytes = await Task.Run(() => File.ReadAllBytes(wavFile));
-                        await FsAccessService.DownloadBytesAsync(wavName, bytes);
+                        await FsAccessService.DownloadWavBytesAsync(wavName, bytes);
                     }
                     DocManager.Inst.ExecuteCmd(new ProgressBarNotification(0, $"Exported {wavFiles.Length} file(s)"));
                     // Clean up
@@ -1089,7 +1089,7 @@ namespace OpenUtau.App.Views {
                 }
             } catch (Exception e) {
                 Log.Error(e, "AskIfSaveAndContinue failed");
-                return true; // Fallback: continue
+                return false; // Cancel on error to prevent data loss
             }
         }
     }
