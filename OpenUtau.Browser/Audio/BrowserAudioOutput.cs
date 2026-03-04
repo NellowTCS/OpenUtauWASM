@@ -40,7 +40,7 @@ namespace OpenUtau.Browser.Audio
             _ = InitializeAsync();
         }
 
-        private async System.Threading.Tasks.Task InitializeAsync()
+        public async System.Threading.Tasks.Task InitializeAsync()
         {
             try
             {

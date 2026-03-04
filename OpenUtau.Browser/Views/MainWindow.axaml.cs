@@ -109,6 +109,8 @@ namespace OpenUtau.App.Views {
         public async Task ShowDialog(Control dialog) {
             if (dialogHost == null) return;
             
+            dialogHost.IsHitTestVisible = true;
+
             var overlay = new Border {
                 Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#80000000")),
                 HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
@@ -123,6 +125,18 @@ namespace OpenUtau.App.Views {
             };
             container.Children.Add(dialog);
             overlay.Child = container;
+
+            void CloseDialog() {
+                dialogHost!.Children.Remove(overlay);
+                dialogHost.IsHitTestVisible = false;
+            }
+
+            overlay.PointerPressed += (s, e) => {
+                if (e.Source == overlay) {
+                    CloseDialog();
+                }
+            };
+
             dialogHost.Children.Add(overlay);
             
             await Task.CompletedTask;

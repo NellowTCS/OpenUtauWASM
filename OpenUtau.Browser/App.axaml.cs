@@ -168,7 +168,7 @@ namespace OpenUtau.App {
 
         private static async Task InitializeBrowserAudio() {
             try {
-              
+               
                 Console.WriteLine("[Audio] Importing AudioBridge...");
                 
                 // Import the AudioBridge JS module
@@ -176,6 +176,7 @@ namespace OpenUtau.App {
                   Console.WriteLine("[Audio] Creating BrowserAudioOutput...");
                 // Set BrowserAudioOutput as the audio output
                 var audioOutput = new OpenUtau.Browser.Audio.BrowserAudioOutput();
+                await audioOutput.InitializeAsync();
                 PlaybackManager.Inst.AudioOutput = audioOutput;
                 
                 Console.WriteLine("[Audio] BrowserAudioOutput created");

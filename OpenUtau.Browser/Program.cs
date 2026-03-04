@@ -17,6 +17,7 @@ using OpenUtau.App.Browser;
 using OpenUtau.App.ViewModels;
 using OpenUtau.Core;
 using OpenUtau.Core.Util;
+using OpenUtau.Browser.Logging;
 using Serilog;
 
 namespace OpenUtau.App {
@@ -122,11 +123,7 @@ namespace OpenUtau.App {
                 .MinimumLevel.Verbose();
             
             if (OS.IsBrowser()) {
-                // Browser: Console.WriteLine maps to console.log in .NET WASM.
-                // Serilog.Sinks.BrowserConsole requires Blazor's IJSRuntime which
-                // is not available in Avalonia Browser, so we use the standard
-                // Console sink instead.
-                loggerConfig.WriteTo.Console();
+                loggerConfig.WriteTo.Sink(new BrowserConsoleSink(null));
             } else {
                 // Desktop: write to debug and console
                 loggerConfig
