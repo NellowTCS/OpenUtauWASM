@@ -30,6 +30,11 @@ namespace OpenUtau.App.Browser {
         /// Get all registered FS Access mount paths.
         public IEnumerable<string> GetFsAccessMounts() => fsAccessMountPaths;
 
+        private bool IsOpfsPath(string path) {
+            var normalized = NormalizePath(path);
+            return normalized.StartsWith(opfsBasePath + "/") || normalized == opfsBasePath;
+        }
+
         private bool IsFsAccessPath(string path) {
             var normalized = NormalizePath(path);
             foreach (var mount in fsAccessMountPaths) {
@@ -37,7 +42,6 @@ namespace OpenUtau.App.Browser {
                     return true;
                 }
             }
-            Log.Warning("IsFsAccessPath: {Path} not in FS Access mounts: {Mounts}", path, string.Join(", ", fsAccessMountPaths));
             return false;
         }
 
