@@ -125,6 +125,8 @@ namespace OpenUtau.Classic {
     public class Frq : IFrqFiles {
         public const int kHopSize = 256;
 
+        private static IFileSystem FS => FileSystemManager.Inst.FS;
+
         public int hopSize { get; private set; }
         public double averageF0 { get; private set; }
         public double[] f0 { get; private set; } = new double[0];
@@ -136,11 +138,11 @@ namespace OpenUtau.Classic {
                 return false;
             }
             string frqFile = VoicebankFiles.GetFrqFile(wavPath);
-            if (!File.Exists(frqFile)) {
+            if (!FS.FileExists(frqFile)) {
                 return false;
             }
             try {
-                using (var fileStream = File.OpenRead(frqFile)) {
+                using (var fileStream = FS.OpenRead(frqFile)) {
                     using (var reader = new BinaryReader(fileStream)) {
                         string header = new string(reader.ReadChars(8));
                         if (header != "FREQ0003") {
@@ -204,6 +206,8 @@ namespace OpenUtau.Classic {
         }
     }
     public class Mrq : IFrqFiles {
+        private static IFileSystem FS => FileSystemManager.Inst.FS;
+
         public int hopSize { get; private set; }
         public double averageF0 { get; private set; }
         public double[] f0 { get; private set; } = new double[0];
@@ -212,10 +216,10 @@ namespace OpenUtau.Classic {
         public bool Load(string wavPath) {
             if (string.IsNullOrEmpty(wavPath)) return false;
             string mrqPath = VoicebankFiles.GetMrqFile(wavPath);
-            if (!File.Exists(mrqPath)) return false;
+            if (!FS.FileExists(mrqPath)) return false;
 
             try {
-                using var fs = File.OpenRead(mrqPath);
+                using var fs = FS.OpenRead(mrqPath);
                 using var br = new BinaryReader(fs);
 
                 // i wish there was a better way to do this

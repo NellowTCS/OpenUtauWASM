@@ -8,10 +8,19 @@ namespace OpenUtau.Classic {
         public bool Paused { get; set; }
 
         private ClassicSinger singer;
-        private FileSystemWatcher watcher;
+        private FileSystemWatcher? watcher;
 
         public OtoWatcher(ClassicSinger singer, string path) {
             this.singer = singer;
+            if (OS.IsBrowser()) {
+                // FileSystemWatcher is not supported in the browser environment.
+                // Singer reloading will need to be triggered manually.
+                // There are experimental watchers in the File System Access API, 
+                // but those are really new afaik and not baseline
+                // TODO: look into a better approach
+                
+                return;
+            }
             watcher = new FileSystemWatcher(path);
             watcher.Changed += OnFileChanged;
             watcher.Created += OnFileChanged;
@@ -36,7 +45,7 @@ namespace OpenUtau.Classic {
         }
 
         public void Dispose() {
-            watcher.Dispose();
+            watcher?.Dispose();
         }
     }
 }

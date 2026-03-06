@@ -59,6 +59,8 @@ DLL_API int ou_audio_device_start(ou_audio_context_t* context);
 
 DLL_API int ou_audio_device_stop(ou_audio_context_t* context);
 
+DLL_API void ou_audio_device_set_callback(ou_audio_context_t* context, ou_audio_data_callback_t callback);
+
 DLL_API const char* ou_audio_get_error_message(int error_code);
 
 DLL_API ou_audio_decoder_t* ou_audio_decoder_open(const char* filename);

@@ -11,6 +11,7 @@ using System.Linq;
 
 namespace OpenUtau.Core.Format {
     public class EncodingDetector {
+        private static IFileSystem FS => FileSystemManager.Inst.FS;
 
         MemoryStream stream = new MemoryStream();
 
@@ -18,7 +19,9 @@ namespace OpenUtau.Core.Format {
             var ReadingSettings = MidiWriter.BaseReadingSettings();
             
             ReadingSettings.DecodeTextCallback = new DecodeTextCallback(AddText);
-            var midi = MidiFile.Read(file,ReadingSettings);
+            using (var fileStream = FS.OpenRead(file)) {
+                var midi = MidiFile.Read(fileStream, ReadingSettings);
+            }
         }
 
         string AddText(byte[] bytes, ReadingSettings settings) {
@@ -38,6 +41,8 @@ namespace OpenUtau.Core.Format {
     }
 
     public static class MidiWriter {
+        private static IFileSystem FS => FileSystemManager.Inst.FS;
+
         //Create a blank new project and import data from midi files
         //Including tempo
         static public UProject LoadProject(string file) {
@@ -55,7 +60,10 @@ namespace OpenUtau.Core.Format {
             //Get midifile resolution
             var ReadingSettings = BaseReadingSettings();
             ReadingSettings.TextEncoding = lyricEncoding;
-            var midi = MidiFile.Read(file, ReadingSettings);
+            MidiFile midi;
+            using (var stream = FS.OpenRead(file)) {
+                midi = MidiFile.Read(stream, ReadingSettings);
+            }
             TicksPerQuarterNoteTimeDivision timeDivision = midi.TimeDivision as TicksPerQuarterNoteTimeDivision;
             var PPQ = timeDivision.TicksPerQuarterNote;
             //Parse tempo
@@ -112,7 +120,10 @@ namespace OpenUtau.Core.Format {
             //Get midifile resolution
             var ReadingSettings = BaseReadingSettings();
             ReadingSettings.TextEncoding = lyricEncoding;
-            var midi = MidiFile.Read(file, ReadingSettings);
+            MidiFile midi;
+            using (var stream = FS.OpenRead(file)) {
+                midi = MidiFile.Read(stream, ReadingSettings);
+            }
             TicksPerQuarterNoteTimeDivision timeDivision = midi.TimeDivision as TicksPerQuarterNoteTimeDivision;
             var PPQ = timeDivision.TicksPerQuarterNote;
             return ParseParts(midi, PPQ, project);
@@ -284,9 +295,11 @@ namespace OpenUtau.Core.Format {
                 midiFile.Chunks.Add(trackChunk);
             }
 
-            midiFile.Write(filePath,true,settings: new WritingSettings {
-                TextEncoding = System.Text.Encoding.UTF8,
-            }) ;
+            using (var stream = FS.OpenFile(filePath, FileMode.Create, FileAccess.Write)) {
+                midiFile.Write(stream, settings: new WritingSettings {
+                    TextEncoding = System.Text.Encoding.UTF8,
+                });
+            }
         }
     }
 }

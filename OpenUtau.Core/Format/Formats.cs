@@ -8,6 +8,8 @@ namespace OpenUtau.Core.Format {
     public enum ProjectFormats { Unknown, Vsq3, Vsq4, Ust, Ustx, Midi, Ufdata, Musicxml };
 
     public static class Formats {
+        private static IFileSystem FS => FileSystemManager.Inst.FS;
+
         const string ustMatch = "[#SETTING]";
         const string ustxMatchJson = "\"ustxVersion\":";
         const string ustxMatchYaml = "ustx_version:";
@@ -19,7 +21,8 @@ namespace OpenUtau.Core.Format {
 
         public static ProjectFormats DetectProjectFormat(string file) {
             var lines = new List<string>();
-            using (var reader = new StreamReader(file)) {
+            using (var stream = FS.OpenRead(file))
+            using (var reader = new StreamReader(stream)) {
                 for (int i = 0; i < 10 && !reader.EndOfStream; ++i) {
                     lines.Add(reader.ReadLine());
                 }
@@ -116,7 +119,7 @@ namespace OpenUtau.Core.Format {
             UProject project = ReadProject(files);
             if (project != null) {
                 string originalPath = project.FilePath.Replace("-autosave.ustx", ".ustx").Replace("-backup.ustx", ".ustx");
-                if (File.Exists(originalPath)) {
+                if (FS.FileExists(originalPath)) {
                     project.FilePath = originalPath;
                 } else {
                     project.FilePath = string.Empty;

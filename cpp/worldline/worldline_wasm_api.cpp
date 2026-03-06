@@ -349,4 +349,50 @@ int worldline_audio_decoder_seek(AudioDecoderWrapper* wrapper, int frame_positio
     return ou_audio_decoder_seek(wrapper->decoder, frame_position);
 }
 
+static ou_audio_data_callback_t g_audio_callback = nullptr;
+
+EMSCRIPTEN_KEEPALIVE
+void worldline_audio_set_callback(ou_audio_data_callback_t callback) {
+    g_audio_callback = callback;
+}
+
+// This function is called from JS to get audio data
+// It will call the registered callback which is actually a JS function pointer
+EMSCRIPTEN_KEEPALIVE
+void worldline_audio_request_data(float* buffer, int channels, int frame_count) {
+    if (!buffer || channels <= 0 || frame_count <= 0) {
+        return;
+    }
+    if (channels > 128 || frame_count > 1000000) {
+        return;
+    }
+
+    if (g_audio_callback) {
+        g_audio_callback(buffer, channels, frame_count);
+    } else {
+        // Fill with silence
+        size_t byte_count = static_cast<size_t>(channels) * static_cast<size_t>(frame_count) * sizeof(float);
+        if (byte_count > 0) {
+            memset(buffer, 0, byte_count);
+        }
+    }
+}
+
+// Initialize audio device for browser
+EMSCRIPTEN_KEEPALIVE
+void* worldline_audio_init_device() {
+    // Return null for now, I may not need this?
+    return nullptr;
+}
+
+EMSCRIPTEN_KEEPALIVE
+void worldline_audio_start(void* device) {
+    // Audio start handled by miniaudio internally
+}
+
+EMSCRIPTEN_KEEPALIVE
+void worldline_audio_stop(void* device) {
+    // Audio stop handled by miniaudio internally
+}
+
 } // extern "C"

@@ -93,6 +93,7 @@ namespace OpenUtau.Core.Format
 
     public static class Ufdata
     {
+        private static IFileSystem FS => FileSystemManager.Inst.FS;
         static UVoicePart ParsePart(UfTrack ufTrack, UProject project) {
             var part = new UVoicePart();
             part.name = ufTrack.name;
@@ -118,7 +119,7 @@ namespace OpenUtau.Core.Format
             Ustx.AddDefaultExpressions(project);
             project.FilePath = file;
 
-            var ufProject = JsonConvert.DeserializeObject<UfFile>(File.ReadAllText(file,Encoding.UTF8)).project;
+            var ufProject = JsonConvert.DeserializeObject<UfFile>(FS.ReadAllText(file, Encoding.UTF8)).project;
             
             //parse tempo
             project.tempos=ufProject.tempos
