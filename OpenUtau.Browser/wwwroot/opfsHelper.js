@@ -1,5 +1,10 @@
 let opfsRoot = null;
 
+// Map to cache file data during async read -> sync transfer
+// Key: unique integer ID, Value: Uint8Array of file contents
+const fileCache = new Map();
+let nextCacheId = 1;
+
 async function init() {
     console.log("[OPFS] init called");
     if (!opfsRoot) {
@@ -46,7 +51,56 @@ async function writeFile(fileName, uint8Array) {
     console.log("[OPFS] writeFile done:", fileName);
 }
 
-// Read file into provided buffer - JS fills the buffer at offset
+// Read file asynchronously and cache it
+// Returns a unique integer ID that can be used to retrieve the cached data
+async function readFileAsync(fileName) {
+    console.log("[OPFS] readFileAsync called:", fileName);
+    try {
+        const { dir, name } = await getParentDirAndName(fileName, false);
+        console.log("[OPFS] Getting file handle:", fileName);
+        const fileHandle = await dir.getFileHandle(name);
+        console.log("[OPFS] Getting file...");
+        const file = await fileHandle.getFile();
+        console.log("[OPFS] Getting arrayBuffer...");
+        const arrayBuffer = await file.arrayBuffer();
+        const uint8 = new Uint8Array(arrayBuffer);
+        
+        // Store in cache with unique ID
+        const cacheId = nextCacheId++;
+        fileCache.set(cacheId, uint8);
+        console.log("[OPFS] readFileAsync cached file with ID:", cacheId, "size:", uint8.length);
+        return cacheId;
+    } catch (e) {
+        console.error("[OPFS] readFileAsync error:", e);
+         return -1;
+    }
+}
+
+// Get cached file data as a byte array (returns as Uint8Array)
+// Cleans up the cache entry after retrieval
+function getCachedFileBytes(cacheId) {
+    console.log("[OPFS] getCachedFileBytes called: cacheId:", cacheId);
+    try {
+        const uint8 = fileCache.get(cacheId);
+        if (!uint8) {
+            console.error("[OPFS] Cache ID not found:", cacheId);
+            return new Uint8Array(0);
+        }
+        
+        // Create a copy to return (so modifications don't affect cache before cleanup)
+        const result = new Uint8Array(uint8);
+        console.log("[OPFS] getCachedFileBytes returning", result.length, "bytes, first 10:", Array.from(result.slice(0, 10)));
+        
+        // Clean up cache entry
+        fileCache.delete(cacheId);
+        return result;
+    } catch (e) {
+        console.error("[OPFS] getCachedFileBytes error:", e);
+        return new Uint8Array(0);
+    }
+}
+
+// Legacy read file into provided buffer, JS fills the buffer at offset
 async function readFileIntoBuffer(fileName, buffer, offset, length) {
     console.log("[OPFS] readFileIntoBuffer called:", fileName, "length:", length);
     try {
@@ -126,4 +180,4 @@ async function deleteDir(dirName) {
     console.log("[OPFS] deleteDir done:", dirName);
 }
 
-export { init, writeFile, readFileIntoBuffer, getFileSize, deleteFile, fileExists, createDir, deleteDir };
+export { init, writeFile, readFileIntoBuffer, readFileAsync, getCachedFileBytes, getFileSize, deleteFile, fileExists, createDir, deleteDir };

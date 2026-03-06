@@ -378,7 +378,9 @@ namespace OpenUtau.Classic {
                             otoSet.Otos.Add(oto);
                         }
                         if (!string.IsNullOrEmpty(oto.Error)) {
-                            Log.Error($"Failed to parse\n{oto.Error}");
+                            var lineForLog = line ?? "(null)";
+                            Log.Error("Failed to parse oto in {File}: Line {LineNum}, Error: {Error}, LineContent: {Line}", 
+                                filePath, trace.lineNumber, oto.Error, lineForLog);
                         }
                     } catch (Exception e) {
                         Log.Error(e, $"Failed to parse\n{trace}");

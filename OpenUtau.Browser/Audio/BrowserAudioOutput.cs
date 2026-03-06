@@ -35,13 +35,18 @@ namespace OpenUtau.Browser.Audio
         public BrowserAudioOutput()
         {
             Instance = this;
-            
-            // Initialize async
-            _ = InitializeAsync();
         }
 
+        private bool initStarted;
+        
         public async System.Threading.Tasks.Task InitializeAsync()
         {
+            if (initStarted)
+            {
+                return;
+            }
+            initStarted = true;
+            
             try
             {
                 isInitialized = false;

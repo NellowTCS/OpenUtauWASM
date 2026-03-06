@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices.JavaScript;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -23,6 +24,14 @@ namespace OpenUtau.App.Browser {
 
         [JSImport("readFileIntoBuffer", "fsAccessHelper")]
         internal static partial Task<int> ReadFileIntoBufferAsync(string path, byte[] buffer, int offset, int length);
+
+        // Two-step async: read file and cache it in JS, returns unique ID
+        [JSImport("readFileAsyncAndCache", "fsAccessHelper")]
+        internal static partial Task<int> ReadFileAsyncAndCacheAsync(string path);
+
+        // Get cached file as byte array
+        [JSImport("getCachedFileBytes", "fsAccessHelper")]
+        internal static partial byte[] GetCachedFileBytesJs(int cacheId);
 
         [JSImport("getFileSize", "fsAccessHelper")]
         internal static partial Task<int> GetFileSizeAsync(string path);
@@ -91,19 +100,28 @@ namespace OpenUtau.App.Browser {
         // Read a file from the FS Access API into a byte array.
         public static async Task<byte[]?> ReadFileAsync(string path) {
             await EnsureInitialized();
-            var size = await GetFileSizeAsync(path);
-            if (size < 0) return null;
-            if (size == 0) return Array.Empty<byte>();
-
-            var buffer = new byte[size];
-            var bytesRead = await ReadFileIntoBufferAsync(path, buffer, 0, size);
-            if (bytesRead < 0) return null;
-            if (bytesRead < size) {
-                var truncated = new byte[bytesRead];
-                Buffer.BlockCopy(buffer, 0, truncated, 0, bytesRead);
-                return truncated;
+            
+            // Step 1: Async read and c file
+            var cacheId = await ReadFileAsyncAndCacheAsync(path);
+            if (cacheId < 0) {
+                Log.Error("Failed to read file asynchronously: {Path}", path);
+                return null;
             }
-            return buffer;
+
+            // Step 2: Retrieve the cached byttly as byte array
+            try {
+                var data = GetCachedFileBytesJs(cacheId);
+                if (data == null || data.Length == 0) {
+                    Log.Warning("File is empty or retrieval failed: {Path}", path);
+                    return Array.Empty<byte>();
+                }
+                Log.Information("FsAccessService.ReadFileAsync: Read {Size} bytes from {Path}, first 10 bytes: {FirstBytes}", 
+                    data.Length, path, string.Join("-", data.Take(10).Select(b => b.ToString("X2"))));
+                return data;
+            } catch (Exception e) {
+                Log.Error(e, "Failed to get cached file bytes: {Path}", path);
+                return null;
+            }
         }
 
         // Represents a file selected via the open file picker.

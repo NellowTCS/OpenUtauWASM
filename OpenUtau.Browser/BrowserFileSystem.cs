@@ -37,6 +37,7 @@ namespace OpenUtau.App.Browser {
                     return true;
                 }
             }
+            Log.Warning("IsFsAccessPath: {Path} not in FS Access mounts: {Mounts}", path, string.Join(", ", fsAccessMountPaths));
             return false;
         }
 
@@ -60,12 +61,17 @@ namespace OpenUtau.App.Browser {
 
         public Stream OpenRead(string path) {
             if (IsFsAccessPath(path)) {
+                Log.Information("BrowserFileSystem.OpenRead: FS Access path {Path}", path);
                 var data = FsAccessService.ReadFileAsync(path).Result;
                 if (data == null) {
+                    Log.Error("BrowserFileSystem.OpenRead: FS Access returned NULL for {Path}", path);
                     throw new FileNotFoundException($"File not found via FS Access API: {path}");
                 }
+                Log.Information("BrowserFileSystem.OpenRead: Read {Size} bytes from {Path}, first 50 bytes: {FirstBytes}", 
+                    data.Length, path, BitConverter.ToString(data.Take(50).ToArray()));
                 return new MemoryStream(data, writable: false);
             }
+            Log.Warning("BrowserFileSystem.OpenRead: Non-FS-Access path {Path}, falling back to File.OpenRead", path);
             return File.OpenRead(path);
         }
 

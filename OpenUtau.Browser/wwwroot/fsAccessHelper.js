@@ -1,6 +1,10 @@
 // Map of virtual mount paths -> { handle: FileSystemDirectoryHandle, name: string }
 const mountedDirs = new Map();
 
+// Cache for async file reads to support two-step transfer pattern
+const fileCache = new Map();
+let nextCacheId = 1;
+
 /**
  * Show a directory picker dialog and mount the selected directory.
  * Returns the mount path
@@ -65,10 +69,58 @@ export async function readFileBytes(path) {
         if (!fileHandle) return null;
         const file = await fileHandle.getFile();
         const buffer = await file.arrayBuffer();
+        const uint8 = new Uint8Array(buffer);
+        console.log('[FSAccess] readFileBytes:', path, 'size:', uint8.length, 'first 10 bytes:', Array.from(uint8.slice(0, 10)));
         return new Uint8Array(buffer);
     } catch (e) {
         console.error('[FSAccess] readFileBytes error for', path, ':', e);
         return null;
+    }
+}
+
+// Read file asynchronously and cache it
+// Returns a unique integer ID that can be used to retrieve the cached data
+export async function readFileAsyncAndCache(path) {
+    console.log('[FSAccess] readFileAsyncAndCache called:', path);
+    try {
+        const fileHandle = await resolveFileHandle(path);
+        if (!fileHandle) return -1;
+        const file = await fileHandle.getFile();
+        const arrayBuffer = await file.arrayBuffer();
+        const uint8 = new Uint8Array(arrayBuffer);
+        
+        // Store in cache with unique ID
+        const cacheId = nextCacheId++;
+        fileCache.set(cacheId, uint8);
+        console.log('[FSAccess] readFileAsyncAndCache cached file with ID:', cacheId, 'size:', uint8.length);
+        return cacheId;
+    } catch (e) {
+        console.error('[FSAccess] readFileAsyncAndCache error for', path, ':', e);
+        return -1;
+    }
+}
+
+// Get cached file data as a byte array (returns as Uint8Array)
+// Cleans up the cache entry after retrieval
+export function getCachedFileBytes(cacheId) {
+    console.log('[FSAccess] getCachedFileBytes called: cacheId:', cacheId);
+    try {
+        const uint8 = fileCache.get(cacheId);
+        if (!uint8) {
+            console.error('[FSAccess] Cache ID not found:', cacheId);
+            return new Uint8Array(0);
+        }
+        
+        // Create a copy to return (so modifications don't affect cache before cleanup)
+        const result = new Uint8Array(uint8);
+        console.log('[FSAccess] getCachedFileBytes returning', result.length, 'bytes, first 10:', Array.from(result.slice(0, 10)));
+        
+        // Clean up cache entry
+        fileCache.delete(cacheId);
+        return result;
+    } catch (e) {
+        console.error('[FSAccess] getCachedFileBytes error:', e);
+        return new Uint8Array(0);
     }
 }
 
@@ -81,6 +133,7 @@ export async function readFileIntoBuffer(path, buffer, offset, length) {
         const arrayBuffer = await file.arrayBuffer();
         const uint8 = new Uint8Array(arrayBuffer);
         const toRead = Math.min(length, uint8.length);
+        console.log('[FSAccess] readFileIntoBuffer:', path, 'requested:', length, 'available:', uint8.length, 'first 10 bytes:', Array.from(uint8.slice(0, 10)));
         buffer.set(uint8.subarray(0, toRead), offset);
         return toRead;
     } catch (e) {

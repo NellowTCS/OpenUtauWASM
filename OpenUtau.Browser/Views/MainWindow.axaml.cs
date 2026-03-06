@@ -79,11 +79,12 @@ namespace OpenUtau.App.Views {
         }
 
         public async Task OpenSingersWindowAsync() {
-            // TODO: Create a browser-compatible singer management dialog.
-            // The desktop SingersDialog extends Window and cannot be used in browser.
-            DocManager.Inst.ExecuteCmd(new ProgressBarNotification(0,
-                "Singer manager is not yet available in the browser. Use Tools > Install Singer to load a voicebank directory."));
-            await Task.CompletedTask;
+            var dialog = new BrowserSingersDialog();
+            dialog.DataContext = new SingersViewModel();
+            var topLevel = TopLevel.GetTopLevel(this);
+            if (topLevel is Window window) {
+                await dialog.ShowDialog(window);
+            }
         }
 
         public void SetPianoRollAttachment() {

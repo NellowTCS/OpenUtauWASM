@@ -14,6 +14,14 @@ namespace OpenUtau.App.Browser {
         [JSImport("readFileIntoBuffer", "opfsHelper")]
         internal static partial Task<int> ReadFileIntoBufferAsync(string fileName, byte[] buffer, int offset, int length);
 
+        // Two-step async: read file and cache it in JS, returns unique ID
+        [JSImport("readFileAsync", "opfsHelper")]
+        internal static partial Task<int> ReadFileAsyncAsync(string fileName);
+
+        // Get cached file as byte array
+        [JSImport("getCachedFileBytes", "opfsHelper")]
+        internal static partial byte[] GetCachedFileBytesJs(int cacheId);
+
         [JSImport("getFileSize", "opfsHelper")]
         internal static partial Task<int> GetFileSizeAsync(string fileName);
 
@@ -66,33 +74,21 @@ namespace OpenUtau.App.Browser {
             try {
                 await EnsureInitialized();
                 
-                // First get file size
-                var size = await GetFileSizeAsync(fileName);
-                if (size < 0) {
+                // Async read and cache the file
+                var cacheId = await ReadFileAsyncAsync(fileName);
+                if (cacheId < 0) {
+                    Log.Error("Failed to read file asynchronously: {FileName}", fileName);
                     return null;
                 }
-                if (size == 0) {
+
+                // Retrieve the cached bytes directly as byte array
+                var data = GetCachedFileBytesJs(cacheId);
+                if (data == null || data.Length == 0) {
+                    Log.Warning("File is empty or retrieval failed: {FileName}", fileName);
                     return Array.Empty<byte>();
                 }
-                
-                // Allocate buffer in C# and pass to JS to fill
-                var buffer = new byte[size];
-                var bytesRead = await ReadFileIntoBufferAsync(fileName, buffer, 0, size);
-                
-                if (bytesRead < 0) {
-                    return null;
-                }
-                if (bytesRead == 0) {
-                    return Array.Empty<byte>();
-                }
-                
-                Log.Information("OPFS loaded: {FileName}, size={Size}", fileName, bytesRead);
-                if (bytesRead < size) {
-                    var truncated = new byte[bytesRead];
-                    Buffer.BlockCopy(buffer, 0, truncated, 0, bytesRead);
-                    return truncated;
-                }
-                return buffer;
+                Log.Information("OPFS loaded: {FileName}, size={Size}", fileName, data.Length);
+                return data;
             } catch (Exception e) {
                 Log.Error(e, "Failed to load file from OPFS: {FileName}", fileName);
                 return null;

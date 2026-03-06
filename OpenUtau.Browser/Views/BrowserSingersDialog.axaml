@@ -1,0 +1,81 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:OpenUtau.App.ViewModels"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="600"
+        x:Class="OpenUtau.App.Views.BrowserSingersDialog"
+        Title="Singer Manager"
+        Width="800" Height="500"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+  <Grid Margin="10">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+      <RowDefinition Height="Auto"/>
+    </Grid.RowDefinitions>
+    
+    <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="10" Margin="0,0,0,10">
+      <TextBlock Text="Singer:" VerticalAlignment="Center"/>
+      <ComboBox x:Name="singerCombo" Width="300"
+                ItemsSource="{Binding Singers}" 
+                SelectedItem="{Binding Singer}">
+        <ComboBox.ItemTemplate>
+          <DataTemplate>
+            <TextBlock Text="{Binding LocalizedName}"/>
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+      <Button Content="Refresh" Command="{Binding RefreshSingerCommand}" Padding="10,5"/>
+    </StackPanel>
+    
+    <Grid Grid.Row="1">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="10"/>
+        <ColumnDefinition Width="*"/>
+      </Grid.ColumnDefinitions>
+      
+      <Border Grid.Column="0" BorderBrush="Gray" BorderThickness="1" Padding="5">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+          </Grid.RowDefinitions>
+          <TextBlock Text="Info" FontWeight="Bold" Margin="0,0,0,5"/>
+          <ScrollViewer Grid.Row="1">
+            <TextBlock Text="{Binding Info}" TextWrapping="Wrap"/>
+          </ScrollViewer>
+        </Grid>
+      </Border>
+      
+      <Border Grid.Column="2" BorderBrush="Gray" BorderThickness="1" Padding="5">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+          </Grid.RowDefinitions>
+          <TextBlock Text="Oto Entries" FontWeight="Bold" Margin="0,0,0,5"/>
+          <DataGrid Grid.Row="1" x:Name="otoGrid"
+                    ItemsSource="{Binding Otos}"
+                    IsReadOnly="True"
+                    AutoGenerateColumns="False">
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="Alias" Binding="{Binding Alias}" Width="100"/>
+              <DataGridTextColumn Header="Wav" Binding="{Binding Wav}" Width="150"/>
+              <DataGridTextColumn Header="Offset" Binding="{Binding Offset}" Width="60"/>
+              <DataGridTextColumn Header="Consonant" Binding="{Binding Consonant}" Width="80"/>
+              <DataGridTextColumn Header="Preutter" Binding="{Binding Preutter}" Width="70"/>
+              <DataGridTextColumn Header="Overlap" Binding="{Binding Overlap}" Width="60"/>
+            </DataGrid.Columns>
+          </DataGrid>
+        </Grid>
+      </Border>
+    </Grid>
+    
+    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+      <Button Content="Close" Click="OnClose" Padding="20,5" Margin="0,0,10,0"/>
+    </StackPanel>
+  </Grid>
+</Window>
