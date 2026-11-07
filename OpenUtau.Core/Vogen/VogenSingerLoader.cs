@@ -43,15 +43,16 @@ namespace OpenUtau.Core.Vogen {
 
         public IEnumerable<USinger> SearchAll() {
             var result = new List<USinger>();
-            if (!Directory.Exists(basePath)) {
+            var fs = FileSystemManager.Inst.FS;
+            if (!fs.DirectoryExists(basePath)) {
                 return result;
             }
             IEnumerable<string> files;
             if (Preferences.Default.LoadDeepFolderSinger) {
-                files = Directory.EnumerateFiles(basePath, "*.vogeon", SearchOption.AllDirectories);
+                files = fs.EnumerateFiles(basePath, "*.vogeon", SearchOption.AllDirectories);
             } else {
                 // TopDirectoryOnly
-                files = Directory.EnumerateFiles(basePath, "*.vogeon");
+                files = fs.EnumerateFiles(basePath, "*.vogeon");
             }
             result.AddRange(files
                 .Select(filePath => {

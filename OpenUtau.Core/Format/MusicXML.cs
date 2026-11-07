@@ -12,6 +12,7 @@ namespace OpenUtau.Core.Format
 {
     public static class MusicXML
     {
+        private static IFileSystem FS => FileSystemManager.Inst.FS;
         static StartStopContinue? NoteTieStatus(MusicXMLSchema.Note note)
         {
             if (note.Tie == null) {
@@ -225,11 +226,12 @@ namespace OpenUtau.Core.Format
         static public System.Text.Encoding DetectXMLEncoding(string file)
         {
             System.Text.Encoding xmlEncoding = System.Text.Encoding.UTF8;
-            var detectionResult = CharsetDetector.DetectFromFile(file);
-
-            if (detectionResult.Detected != null && detectionResult.Detected.Confidence > 0.5)
-            {
-                xmlEncoding = detectionResult.Detected.Encoding;
+            using (var stream = FS.OpenRead(file)) {
+                var detectionResult = CharsetDetector.DetectFromStream(stream);
+                if (detectionResult.Detected != null && detectionResult.Detected.Confidence > 0.5)
+                {
+                    xmlEncoding = detectionResult.Detected.Encoding;
+                }
             }
             return xmlEncoding;
         }
@@ -250,7 +252,7 @@ namespace OpenUtau.Core.Format
             settings.DtdProcessing = DtdProcessing.Parse;
             settings.MaxCharactersFromEntities = 1024;
 
-            using (var fs = new FileStream(xmlFile, FileMode.Open))
+            using (var fs = FS.OpenRead(xmlFile))
             using (var xmlReader = XmlReader.Create(fs, settings))
             {
                 XmlSerializer s = new XmlSerializer(typeof(MusicXMLSchema.ScorePartwise));

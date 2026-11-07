@@ -19,6 +19,9 @@ namespace OpenUtau.Core {
         private static readonly Dictionary<int, OrtEpDevice> devices = initializeDevices();
 
         private static Dictionary<int, OrtEpDevice> initializeDevices() {
+            if (OS.IsBrowser()) {
+                return new Dictionary<int, OrtEpDevice>();
+            }
             var env = OrtEnv.Instance();
             var ortDevices = env.GetEpDevices();
 
@@ -29,6 +32,9 @@ namespace OpenUtau.Core {
         }
 
         public static List<string> getRunnerOptions() {
+            if (OS.IsBrowser()) {
+                return new List<string> { "CPU" };
+            }
             if (OS.IsWindows()) {
                 return new List<string> {
                 "CPU",
@@ -51,9 +57,9 @@ namespace OpenUtau.Core {
         }
 
         public static List<GpuInfo> getGpuInfo() {
-            if (OS.IsAndroid()) {
+            if (OS.IsBrowser() || OS.IsAndroid()) {
                 return new List<GpuInfo>{new GpuInfo {
-                    deviceId = 0, // eliminate exception of taking OnnxGpuOptions[0]
+                    deviceId = 0,
                 }};
             }
             List<GpuInfo> gpuList = new List<GpuInfo>();
@@ -87,6 +93,11 @@ namespace OpenUtau.Core {
         }
 
         private static SessionOptions getOnnxSessionOptions(bool coremlEnableOnSubgraphs = false) {
+            if (OS.IsBrowser()) {
+                // ONNX Runtime native library is not available in WASM.
+                // TODO: Integrate onnxruntime-web or WASM build of ONNX Runtime.
+                throw new PlatformNotSupportedException("ONNX Runtime is not yet supported in the browser.");
+            }
             SessionOptions options = new SessionOptions();
             List<string> runnerOptions = getRunnerOptions();
             string runner = Preferences.Default.OnnxRunner;
@@ -122,6 +133,9 @@ namespace OpenUtau.Core {
         }
 
         public static InferenceSession getInferenceSession(byte[] model, bool force_cpu = false) {
+            if (OS.IsBrowser()) {
+                throw new PlatformNotSupportedException("ONNX Runtime is not yet supported in the browser.");
+            }
             if (force_cpu) {
                 return new InferenceSession(model);
             } else {
@@ -138,6 +152,9 @@ namespace OpenUtau.Core {
         }
 
         public static InferenceSession getInferenceSession(string modelPath, bool force_cpu = false) {
+            if (OS.IsBrowser()) {
+                throw new PlatformNotSupportedException("ONNX Runtime is not yet supported in the browser.");
+            }
             if (force_cpu) {
                 return new InferenceSession(modelPath);
             } else {

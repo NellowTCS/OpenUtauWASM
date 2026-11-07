@@ -13,6 +13,8 @@ using Serilog;
 
 namespace OpenUtau.Core {
     public class SingerManager : SingletonBase<SingerManager> {
+        private static IFileSystem FS => FileSystemManager.Inst.FS;
+
         public Dictionary<string, USinger> Singers { get; private set; } = new Dictionary<string, USinger>();
         public Dictionary<USingerType, List<USinger>> SingerGroups { get; private set; } = new Dictionary<USingerType, List<USinger>>();
 
@@ -27,7 +29,7 @@ namespace OpenUtau.Core {
 
         public void SearchAllSingers() {
             Log.Information("Searching singers.");
-            Directory.CreateDirectory(PathManager.Inst.SingersPath);
+            FS.CreateDirectory(PathManager.Inst.SingersPath);
             var stopWatch = Stopwatch.StartNew();
             var singers = ClassicSingerLoader.FindAllSingers()
                 .Concat(Vogen.VogenSingerLoader.FindAllSingers())

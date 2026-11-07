@@ -331,11 +331,21 @@ namespace OpenUtau.App.ViewModels {
         }
 
         public void RefreshTemplates() {
-            Directory.CreateDirectory(PathManager.Inst.TemplatesPath);
-            var templates = Directory.GetFiles(PathManager.Inst.TemplatesPath, "*.ustx");
+            var fs = FileSystemManager.Inst.FS;
+            var templatesPath = PathManager.Inst.TemplatesPath;
+            if (!fs.DirectoryExists(templatesPath)) {
+                fs.CreateDirectory(templatesPath);
+            }
+            var templates = fs.GetFiles(templatesPath, "*.ustx");
+            RefreshTemplatesFromFiles(templates);
+        }
+
+        
+        public void RefreshTemplatesFromFiles(string[] templates) {
+            var templatesPath = PathManager.Inst.TemplatesPath;
             openTemplatesMenuItems.Clear();
             openTemplatesMenuItems.AddRange(templates.Select(file => new MenuItemViewModel() {
-                Header = Path.GetRelativePath(PathManager.Inst.TemplatesPath, file),
+                Header = Path.GetRelativePath(templatesPath, file),
                 Command = OpenTemplateCommand,
                 CommandParameter = file,
             }));

@@ -186,6 +186,11 @@ DLL_API int ou_audio_device_stop(ou_audio_context_t* context) {
   return ma_device_stop(&context->device);
 }
 
+DLL_API void ou_audio_device_set_callback(ou_audio_context_t* context, ou_audio_data_callback_t callback) {
+  (void)context;  // Using global callback for simplicity (TODO, proper setup)
+  g_data_callback = callback;
+}
+
 DLL_API const char* ou_audio_get_error_message(int error_code) {
   return ma_result_description((ma_result)error_code);
 }

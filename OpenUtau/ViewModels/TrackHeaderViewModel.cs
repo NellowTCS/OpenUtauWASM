@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reactive;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -62,38 +63,45 @@ namespace OpenUtau.App.ViewModels {
 
         public TrackHeaderViewModel(UTrack track) {
             this.track = track;
-            SelectSingerCommand = ReactiveCommand.Create<USinger>(singer => {
+            SelectSingerCommand = ReactiveCommand.CreateFromTask<USinger>(async singer => {
                 if (track.Singer != singer) {
+                    // Pre-load the singer on a background thread before executing the command.
+                    if (singer != null && singer.Found) {
+                        await singer.EnsureLoadedAsync();
+                    }
                     DocManager.Inst.StartUndoGroup("command.track.singer");
-                    Log.Information($"Loading Singer: {singer.Name}");
-                    DocManager.Inst.ExecuteCmd(new TrackChangeSingerCommand(DocManager.Inst.Project, track, singer));
-                    if (!string.IsNullOrEmpty(singer?.Id) &&
-                        Preferences.Default.SingerPhonemizers.TryGetValue(Singer.Id, out var phonemizerName) &&
-                        TryChangePhonemizer(phonemizerName)) {
-                    } else if (!string.IsNullOrEmpty(singer?.DefaultPhonemizer)) {
-                        TryChangePhonemizer(singer.DefaultPhonemizer);
-                    }
-                    if (singer == null || !singer.Found) {
-                        var settings = new URenderSettings();
-                        DocManager.Inst.ExecuteCmd(new TrackChangeRenderSettingCommand(DocManager.Inst.Project, track, settings));
-                    } else if (singer.SingerType != track.RendererSettings.Renderer?.SingerType) {
-                        var settings = new URenderSettings {
-                            renderer = Core.Render.Renderers.GetDefaultRenderer(singer.SingerType),
-                        };
-                        DocManager.Inst.ExecuteCmd(new TrackChangeRenderSettingCommand(DocManager.Inst.Project, track, settings));
-                    }
-                    DocManager.Inst.ExecuteCmd(new VoiceColorRemappingNotification(track.TrackNo, true));
-                    DocManager.Inst.EndUndoGroup();
-                    if (!string.IsNullOrEmpty(singer?.Id) && singer.Found) {
-                        Preferences.Default.RecentSingers.Remove(singer.Id);
-                        Preferences.Default.RecentSingers.Insert(0, singer.Id);
-                        if (Preferences.Default.RecentSingers.Count > 16) {
-                            Preferences.Default.RecentSingers.RemoveRange(
-                                16, Preferences.Default.RecentSingers.Count - 16);
+                    try {
+                        Log.Information($"Loading Singer: {singer?.Name}");
+                        DocManager.Inst.ExecuteCmd(new TrackChangeSingerCommand(DocManager.Inst.Project, track, singer));
+                        if (!string.IsNullOrEmpty(singer?.Id) &&
+                            Preferences.Default.SingerPhonemizers.TryGetValue(singer.Id, out var phonemizerName) &&
+                            TryChangePhonemizer(phonemizerName)) {
+                        } else if (!string.IsNullOrEmpty(singer?.DefaultPhonemizer)) {
+                            TryChangePhonemizer(singer.DefaultPhonemizer);
                         }
+                        if (singer == null || !singer.Found) {
+                            var settings = new URenderSettings();
+                            DocManager.Inst.ExecuteCmd(new TrackChangeRenderSettingCommand(DocManager.Inst.Project, track, settings));
+                        } else if (singer.SingerType != track.RendererSettings.Renderer?.SingerType) {
+                            var settings = new URenderSettings {
+                                renderer = Core.Render.Renderers.GetDefaultRenderer(singer.SingerType),
+                            };
+                            DocManager.Inst.ExecuteCmd(new TrackChangeRenderSettingCommand(DocManager.Inst.Project, track, settings));
+                        }
+                        DocManager.Inst.ExecuteCmd(new VoiceColorRemappingNotification(track.TrackNo, true));
+                        if (!string.IsNullOrEmpty(singer?.Id) && singer.Found) {
+                            Preferences.Default.RecentSingers.Remove(singer.Id);
+                            Preferences.Default.RecentSingers.Insert(0, singer.Id);
+                            if (Preferences.Default.RecentSingers.Count > 16) {
+                                Preferences.Default.RecentSingers.RemoveRange(
+                                    16, Preferences.Default.RecentSingers.Count - 16);
+                            }
+                        }
+                        Preferences.Save();
+                        MessageBus.Current.SendMessage(new PianorollRefreshEvent("Part"));
+                    } finally {
+                        DocManager.Inst.EndUndoGroup();
                     }
-                    Preferences.Save();
-                    MessageBus.Current.SendMessage(new PianorollRefreshEvent("Part"));
                 }
                 this.RaisePropertyChanged(nameof(Singer));
                 this.RaisePropertyChanged(nameof(Renderer));

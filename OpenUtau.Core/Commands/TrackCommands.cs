@@ -114,8 +114,8 @@ namespace OpenUtau.Core {
     }
 
     public class TrackChangeSingerCommand : TrackCommand {
-        readonly USinger newSinger, oldSinger;
-        public TrackChangeSingerCommand(UProject project, UTrack track, USinger newSinger) {
+        readonly USinger? newSinger, oldSinger;
+        public TrackChangeSingerCommand(UProject project, UTrack track, USinger? newSinger) {
             this.project = project;
             this.track = track;
             this.newSinger = newSinger;

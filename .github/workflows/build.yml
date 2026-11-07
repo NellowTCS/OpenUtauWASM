@@ -215,3 +215,25 @@ jobs:
             ## macOS says "This app is damaged"
             Open a terminal and run `xattr -rc /Applications/OpenUtau.app`. Try opening OpenUtau again.
         if: ${{ inputs.release }}
+  build-wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+      - name: Install .NET WASM workloads
+        run: |
+          dotnet workload install wasm-tools-net8
+          dotnet workload install wasm-tools-net9
+      - name: Restore .NET workloads
+        run: dotnet workload restore
+      - name: Build WASM
+        run: dotnet publish OpenUtau.Browser -c Release --self-contained true -o bin/wasm/
+      - name: Upload WASM Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenUtau-browser-wasm
+          path: bin/wasm/

@@ -4,10 +4,16 @@
     <title>OpenUtau Browser</title>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="./coi-serviceworker.js"></script>
     <link rel="stylesheet" href="./app.css" />
   </head>
 
   <body style="margin: 0; overflow: hidden">
+    <div id="audio-enable-overlay" class="audio-enable-overlay" style="display: none;">
+      <button id="audio-enable-btn" class="audio-enable-btn">
+        Click to Enable Audio
+      </button>
+    </div>
     <div id="out">
       <div class="avalonia-splash">
         <h2>

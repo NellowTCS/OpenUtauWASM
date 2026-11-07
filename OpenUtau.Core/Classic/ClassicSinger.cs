@@ -1,16 +1,19 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
+using OpenUtau.Core;
 using OpenUtau.Core.Ustx;
 using Serilog;
 using WanaKanaNet;
 
 namespace OpenUtau.Classic {
     public class ClassicSinger : USinger {
+        private static IFileSystem FS => FileSystemManager.Inst.FS;
         public override string Id => voicebank.Id;
         public override string Name => voicebank.Name;
         public override Dictionary<string, string> LocalizedNames => voicebank.LocalizedNames;
@@ -42,6 +45,8 @@ namespace OpenUtau.Classic {
         List<UOto> otos = new List<UOto>();
         Dictionary<string, UOto> otoMap = new Dictionary<string, UOto>();
         OtoWatcher otoWatcher;
+        private int loadingFlag; // Browser async loading guard (0 = not loading, 1 = loading)
+        private Task? loadingTask; // Track the async loading task for awaiting
 
         public bool? UseFilenameAsAlias { get => voicebank.UseFilenameAsAlias; set => voicebank.UseFilenameAsAlias = value; }
         public Dictionary<string, IFrqFiles> Frqs { get; set; } = new Dictionary<string, IFrqFiles>();
@@ -55,7 +60,43 @@ namespace OpenUtau.Classic {
             if (Loaded) {
                 return;
             }
+            if (OS.IsBrowser()) {
+                // kick off async loading on a background thread and return immediately.
+                // After loading completes, a re-validation is triggered.
+                if (Interlocked.CompareExchange(ref loadingFlag, 1, 0) != 0) {
+                    return; // Already loading
+                }
+                loadingTask = Task.Run(() => {
+                    try {
+                        Reload();
+                        Log.Information($"Singer {Name} loaded asynchronously.");
+                    } catch (Exception e) {
+                        Log.Error(e, $"Failed to async-load singer {Name}");
+                    } finally {
+                        Interlocked.Exchange(ref loadingFlag, 0);
+                    }
+                    // Trigger re-validation on the UI thread now that singer data is available.
+                    DocManager.Inst.PostOnUIThread?.Invoke(() => {
+                        DocManager.Inst.ExecuteCmd(new ValidateProjectNotification());
+                    });
+                });
+                return;
+            }
             Reload();
+        }
+
+        public override async Task EnsureLoadedAsync() {
+            if (Loaded) {
+                return;
+            }
+            if (OS.IsBrowser()) {
+                EnsureLoaded(); // Kick off loading if not already
+                if (loadingTask != null) {
+                    await loadingTask;
+                }
+                return;
+            }
+            EnsureLoaded();
         }
 
         public override void Reload() {
@@ -76,9 +117,9 @@ namespace OpenUtau.Classic {
         }
 
         void Load() {
-            if (Avatar != null && File.Exists(Avatar)) {
+            if (Avatar != null && FS.FileExists(Avatar)) {
                 try {
-                    using (var stream = new FileStream(Avatar, FileMode.Open, FileAccess.Read)) {
+                    using (var stream = FS.OpenFile(Avatar, FileMode.Open, FileAccess.Read)) {
                         using (var memoryStream = new MemoryStream()) {
                             stream.CopyTo(memoryStream);
                             avatarData = memoryStream.ToArray();
@@ -90,7 +131,9 @@ namespace OpenUtau.Classic {
                 }
             } else {
                 avatarData = null;
-                Log.Error("Avatar can't be found");
+                if (!string.IsNullOrWhiteSpace(Avatar)) {
+                    Log.Warning("Avatar file not found: {Path}", Avatar);
+                }
             }
 
             subbanks.Clear();
@@ -198,7 +241,7 @@ namespace OpenUtau.Classic {
         public override byte[] LoadPortrait() {
             return string.IsNullOrEmpty(Portrait)
                 ? null
-                : File.ReadAllBytes(Portrait);
+                : FS.ReadAllBytes(Portrait);
         }
     }
 }

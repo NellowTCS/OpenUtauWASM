@@ -96,10 +96,11 @@ namespace OpenUtau.Core.Format {
 
         public static void Save(string filePath, UProject project) {
             try {
+                var fs = FileSystemManager.Inst.FS;
                 project.ustxVersion = kUstxVersion;
                 project.FilePath = filePath;
                 project.BeforeSave();
-                File.WriteAllText(filePath, Yaml.DefaultSerializer.Serialize(project), Encoding.UTF8);
+                fs.WriteAllText(filePath, Yaml.DefaultSerializer.Serialize(project), Encoding.UTF8);
                 project.Saved = true;
                 project.AfterSave();
                 Preferences.Default.RecoveryPath = string.Empty;
@@ -113,9 +114,10 @@ namespace OpenUtau.Core.Format {
 
         public static void AutoSave(string filePath, UProject project) {
             try {
+                var fs = FileSystemManager.Inst.FS;
                 project.ustxVersion = kUstxVersion;
                 project.BeforeSave();
-                File.WriteAllText(filePath, Yaml.DefaultSerializer.Serialize(project), Encoding.UTF8);
+                fs.WriteAllText(filePath, Yaml.DefaultSerializer.Serialize(project), Encoding.UTF8);
                 project.AfterSave();
                 Preferences.Default.RecoveryPath = filePath;
                 Preferences.Save();
@@ -125,7 +127,8 @@ namespace OpenUtau.Core.Format {
         }
 
         public static UProject Load(string filePath) {
-            string text = File.ReadAllText(filePath, Encoding.UTF8);
+            var fs = FileSystemManager.Inst.FS;
+            string text = fs.ReadAllText(filePath, Encoding.UTF8);
             UProject project = Yaml.DefaultDeserializer.Deserialize<UProject>(text);
             AddDefaultExpressions(project);
             project.FilePath = filePath;

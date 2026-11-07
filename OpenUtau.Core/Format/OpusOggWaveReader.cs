@@ -3,10 +3,13 @@ using System.IO;
 using Concentus.Oggfile;
 using Concentus.Structs;
 using NAudio.Wave;
+using OpenUtau.Core;
 
 namespace OpenUtau.Core.Format {
     // Preliminary blocking Opus reader.
     public class OpusOggWaveReader : WaveStream {
+        private static IFileSystem FS => FileSystemManager.Inst.FS;
+
         WaveFormat waveFormat;
         MemoryStream oggStream;
         OpusDecoder decoder;
@@ -14,7 +17,7 @@ namespace OpenUtau.Core.Format {
         byte[] wavData;
 
         public OpusOggWaveReader(string oggFile) {
-            using (FileStream fileStream = new FileStream(oggFile, FileMode.Open, FileAccess.Read)) {
+            using (var fileStream = FS.OpenRead(oggFile)) {
                 oggStream = new MemoryStream();
                 fileStream.CopyTo(oggStream);
             }
